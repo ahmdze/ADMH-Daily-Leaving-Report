@@ -99,14 +99,18 @@ body.print-capturing .app-modal-backdrop { z-index: 80; }
     overflow: visible;
 }
 
-/* نص الإسناد: يتمدّد على كامل العرض ويبقى في الوسط.
+/* نص الإسناد: يبدأ من الحافة اليمنى وينتهي عند اليسرى تماماً
+   بمحاذاة الخط الفاصل أعلاه — لذا نستخدم justify مع justify للسطر الأخير
+   (النص سطر واحد، فيحتاج text-align-last ليتمدّد فعلاً).
    لا text-overflow ولا overflow: hidden هنا إطلاقاً — أي قصّ يعني
    ضياع حروف أو أرقام، والمطلوب ظهور كل حرف. */
 .print-page-footer .pf-credit {
     display: block;
     width: 100%;
-    text-align: center;
-    white-space: nowrap;
+    text-align: justify;
+    text-align-last: justify;
+    -moz-text-align-last: justify;
+    white-space: normal;
     overflow: visible;
     text-overflow: clip;
 }

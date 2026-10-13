@@ -1194,6 +1194,12 @@ try {
             statusHeaderCells: [].slice.call(first.querySelectorAll('th')).filter(function (th) { return th.textContent.indexOf('الحالة') !== -1; }).length,
             sortIcons: first.querySelectorAll('i[class*="fa-sort"]').length,
             headerRepeated: res.pages.every(p => p.textContent.indexOf('وزارة الصحة') !== -1),
+            /* التذييل نفسه في كل صفحة — فحص حقيقي لا فحص ترويسة */
+            footerOnEveryPage: res.pages.every(p => {
+                const f = p.querySelector('.print-page-footer');
+                return !!f && f.textContent.indexOf('احمد زياد رحيمه') !== -1;
+            }),
+            footersFound: res.pages.filter(p => p.querySelector('.print-page-footer')).length,
             rowsOnPage1: first.querySelectorAll('tbody tr').length,
             rowsPerPage: res.pages.map(p => p.querySelectorAll('tbody tr').length),
             rowsTotal: res.pages.reduce((s, p) => s + p.querySelectorAll('tbody tr').length, 0),
@@ -1223,7 +1229,9 @@ try {
     check('issue 6: fixed credit footer inside every page',
         /نظام موقف الإجازات اليومي الموحد/.test(pages.credit) &&
         /احمد زياد رحيمه/.test(pages.credit), pages.credit.slice(0, 70));
-    check('issue 6: footer present on every page', pages.headerRepeated && pages.credit.length > 20);
+    check('issue 6: footer present on every page',
+        pages.footerOnEveryPage === true && pages.footersFound === pages.total,
+        'footers=' + pages.footersFound + '/' + pages.total);
     check('issue 7: page 1 footer reads "الصفحة 1 من N"',
         pages.page1 === 'الصفحة 1 من ' + pages.total, pages.page1);
     check('issue 7: last page footer reads "الصفحة N من N"',
@@ -1286,6 +1294,31 @@ try {
             footerFits: footerEl ? footerEl.scrollWidth <= footerEl.clientWidth + 1 : false,
             footerScroll: footerEl ? footerEl.scrollWidth : 0,
             footerClient: footerEl ? footerEl.clientWidth : 0,
+            /* امتداد نص التذييل الفعلي مقابل عرض الخط الفاصل */
+            footerWidth: footerEl ? Math.round(footerEl.getBoundingClientRect().width) : 0,
+            creditTextWidth: (function () {
+                if (!creditEl) return 0;
+                const rg = document.createRange();
+                rg.selectNodeContents(creditEl);
+                return Math.round(rg.getBoundingClientRect().width);
+            })(),
+            creditLines: (function () {
+                if (!creditEl) return 0;
+                const rg = document.createRange();
+                rg.selectNodeContents(creditEl);
+                const rects = rg.getClientRects();
+                const tops = {};
+                for (let i = 0; i < rects.length; i++) {
+                    if (rects[i].width > 0 || rects[i].height > 0) tops[Math.round(rects[i].top)] = 1;
+                }
+                return Object.keys(tops).length;
+            })(),
+            creditRects: (function () {
+                if (!creditEl) return 0;
+                const rg = document.createRange();
+                rg.selectNodeContents(creditEl);
+                return rg.getClientRects().length;
+            })(),
             pagenoFirst: (first.querySelector('[data-print-pageno]') || {}).textContent || '',
             pagenoLast: (last.querySelector('[data-print-pageno]') || {}).textContent || '',
             footerHasPageno: /الصفحة/.test(footerEl ? footerEl.textContent : ''),
@@ -1302,6 +1335,12 @@ try {
         layout.footerText === layout.expected, layout.footerText.slice(0, 70));
     check('footer: single line fits without losing characters',
         layout.footerFits, layout.footerScroll + ' <= ' + layout.footerClient);
+    /* المطلوب: يمتد النص بعرض الخط الفاصل من الحافة إلى الحافة */
+    check('footer: text spans the full width of the separator line',
+        Math.abs(layout.creditTextWidth - layout.footerWidth) <= 2,
+        'text=' + layout.creditTextWidth + ' line=' + layout.footerWidth);
+    check('footer: still exactly one line after justification',
+        layout.creditLines === 1, 'lines=' + layout.creditLines + ' rects=' + layout.creditRects);
     check('page number moved into the header (first page)',
         layout.pagenoFirst === 'الصفحة 1 من ' + layout.total, layout.pagenoFirst);
     check('page number moved into the header (last page)',
@@ -1574,7 +1613,12 @@ try {
             sum: per.reduce((a, b) => a + b, 0),
             emptyPages: per.filter((n, i) => n === 0 && i < per.length - 1).length,
             maxBody: Math.max.apply(null, bodyMax),
-            limit: limit
+            limit: limit,
+            footersFound: res.pages.filter(p => p.querySelector('.print-page-footer')).length,
+            footersComplete: res.pages.every(p => {
+                const f = p.querySelector('.print-page-footer');
+                return !!f && f.textContent.indexOf('احمد زياد رحيمه') !== -1;
+            })
         };
     });
     check('engine stress: many records span several pages', bulk.pages > 1, bulk.pages);
@@ -1582,6 +1626,8 @@ try {
         bulk.sum === bulk.totalRecords,
         'in=' + bulk.totalRecords + ' out=' + bulk.sum + ' pages=' + bulk.pages + ' perPage=[' + bulk.per.join(',') + ']');
     check('engine stress: no empty middle page', bulk.emptyPages === 0, bulk.emptyPages);
+    check('engine stress: footer present on every one of the pages',
+        bulk.footersComplete === true, 'footers=' + bulk.footersFound + '/' + bulk.pages);
     check('engine stress: page content stays inside the page',
         bulk.maxBody <= bulk.limit + 2, bulk.maxBody + ' <= ' + bulk.limit);
 
