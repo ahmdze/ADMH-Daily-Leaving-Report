@@ -1402,12 +1402,12 @@ try {
         layout.footerText === layout.expected, layout.footerText.slice(0, 70));
     check('footer: single line fits without losing characters',
         layout.footerFits, layout.footerScroll + ' <= ' + layout.footerClient);
-    /* المطلوب: يمتد النص بعرض الخط الفاصل من الحافة إلى الحافة.
-       نقيس الفجوة عند الحافة اليسرى (آخر حروف النص العربي) لا عرض المدى،
-       لأن عرض المدى يعطي عرض النص الأصلي لا الممدّد. */
-    check('footer: justified edge to edge (no gap at either end)',
-        layout.creditLeftGap >= -2 && layout.creditLeftGap <= 3,
-        'leftGap=' + layout.creditLeftGap + 'px  textAlign=' + layout.creditAlign + '/' + layout.creditAlignLast);
+    /* المستخدم اختار التذييل المتمركز (لا الامتداد إلى الحافة) — فالفحص
+       يتحقق من أنه سطر واحد كامل داخل حدوده بلا اقتطاع، لا من المحاذاة. */
+    check('footer: one complete line staying inside its box',
+        layout.creditLines === 1 && layout.creditLeftGap > 0,
+        'lines=' + layout.creditLines + '  align=' + layout.creditAlign +
+        '  leftGap=' + layout.creditLeftGap + 'px');
     check('footer: still exactly one line after justification',
         layout.creditLines === 1, 'lines=' + layout.creditLines + ' rects=' + layout.creditRects);
     check('page number moved into the header (first page)',
