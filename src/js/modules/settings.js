@@ -534,8 +534,12 @@ App.Settings = (function () {
 
             const copy = $('aboutCopyright');
             if (copy) {
-                copy.textContent = '© ' + new Date().getFullYear() + ' ' + (d.name || '') +
-                    ' — جميع الحقوق محفوظة. ' + (d.title || '');
+                const year = new Date().getFullYear();
+                const name = (d.name || '').trim();
+                const title = d.title ? ` (${d.title.trim()})` : '';
+                
+                // النتيجة: جميع الحقوق محفوظة - احمد زياد رحيمه (تقني طبي) © 2026
+                copy.textContent = `جميع الحقوق محفوظة - ${name}${title} © ${year}`;
             }
         }
 
