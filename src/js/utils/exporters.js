@@ -116,6 +116,19 @@ App.Exporters = (function () {
         /* إزالة الأيقونات من الرأس */
         clone.querySelectorAll('i').forEach(i => i.remove());
 
+        /* الخلايا المكوّنة من أسطر متعددة (القسم ثم الشعبة، والمدة ثم التاريخ)
+           تُدمج في Excel كنص واحد فتتلاصق الكلمات («قسم الباطنيةشعبة الباطنية أ»).
+           نُدخل فاصلاً بين الأسطر، بمسافة غير قابلة للطي (U+00A0) لأن المسافة
+           العادية تُطوى عند استخراج نص الخلية. */
+        clone.querySelectorAll('td').forEach(td => {
+            let blocks;
+            try { blocks = td.querySelectorAll(':scope > div, :scope > p'); }
+            catch (e) { blocks = []; }
+            for (let i = 1; i < blocks.length; i++) {
+                blocks[i].insertAdjacentText('beforebegin', '\u00A0-\u00A0');
+            }
+        });
+
         const ws = XLSX.utils.table_to_sheet(clone, { raw: false });
         ws['!views'] = [{ RTL: true }];
         /* التذييل الثابت آخر الورقة كما في المطبوع */

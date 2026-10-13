@@ -618,6 +618,57 @@ try {
         check('Excel file is non-trivial in size', size > 3000, size + ' bytes');
     }
 
+    /* محتوى ملف Excel: كل السجلات + سطر التذييل + فواصل بين أسطر الخلية */
+    const xlsxContent = await page.evaluate(async () => {
+        let captured = null;
+        const real = XLSX.writeFile;
+        XLSX.writeFile = function (wb) { captured = wb; };
+        App.App.showTab('dashboard');
+        /* نضمن وجود سجل له قسم وشعبة معاً لفحص فاصل الخلية */
+        const first = App.Store.get.leaves()[0];
+        if (first && first.dept && !first.section) {
+            first.section = 'شعبة اختبار';
+            App.Store.save(['leaves']);
+            await new Promise(r => setTimeout(r, 400));
+        }
+        const mode = document.getElementById('dashPeriodMode');
+        mode.value = 'all';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 500));
+        document.getElementById('btnDashExcel').click();
+        await new Promise(r => setTimeout(r, 1200));
+        XLSX.writeFile = real;
+        if (!captured) return { error: 'workbook not captured' };
+
+        const ws = captured.Sheets[captured.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
+        const flat = aoa.map(r => (r || []).map(c => String(c === undefined ? '' : c)));
+        const dataOnly = flat.slice(1);
+        const deptRow = dataOnly.find(r => /قسم|شعبة/.test(r[3] || '')) || [];
+        const durRow = dataOnly.find(r => /يوم|ساعة/.test(r[5] || '')) || [];
+        return {
+            header: flat[0],
+            dataRows: flat.filter(r => r[1] && r[1] !== 'اسم الموظف').length,
+            records: App.Store.get.leaves().length,
+            hasFooter: JSON.stringify(flat).indexOf('احمد زياد رحيمه') !== -1,
+            deptCell: deptRow[3] || '',
+            durationCell: durRow[5] || '',
+            hasStatus: JSON.stringify(flat[0]).indexOf('الحالة') !== -1
+        };
+    });
+    check('Excel: every filtered record exported',
+        xlsxContent.dataRows === xlsxContent.records,
+        xlsxContent.dataRows + '/' + xlsxContent.records);
+    check('Excel: footer credit row appended at the end', xlsxContent.hasFooter === true);
+    check('Excel: status column excluded', xlsxContent.hasStatus === false);
+    /* لا تتلاصق الكلمات عند دمج أسطر الخلية، ويوجد فاصل ظاهر */
+    check('Excel: multi-line cells get a separator (no glued words)',
+        xlsxContent.deptCell.indexOf('الطوارئشعبة') === -1 &&
+        xlsxContent.deptCell.indexOf('-') !== -1 &&
+        !/يوم\d/.test(xlsxContent.durationCell) &&
+        xlsxContent.durationCell.indexOf('-') !== -1,
+        xlsxContent.deptCell + '  |  ' + xlsxContent.durationCell);
+
     await page.evaluate(() => {
         const list = document.getElementById('reportMode');
         if (list) { list.value = 'employee'; list.dispatchEvent(new Event('change', { bubbles: true })); }
@@ -1319,6 +1370,22 @@ try {
                 rg.selectNodeContents(creditEl);
                 return rg.getClientRects().length;
             })(),
+            /* قياس هندسي دقيق للتمدّد: في نص RTL تمتد آخر الحروف إلى
+               الحافة اليسرى. إن كان النص متمركزاً غير ممدّد تظهر فجوة
+               بنحو نصف الفراغ. الفجوة ≈ 0 تعني تمدّداً فعلياً. */
+            creditLeftGap: (function () {
+                if (!creditEl || !creditEl.firstChild) return -1;
+                const node = creditEl.firstChild;
+                const len = (creditEl.textContent || '').length;
+                if (!len) return -1;
+                const rg = document.createRange();
+                rg.setStart(node, Math.max(0, len - 3));
+                rg.setEnd(node, len);
+                const box = creditEl.getBoundingClientRect();
+                return Math.round(rg.getBoundingClientRect().left - box.left);
+            })(),
+            creditAlign: creditEl ? getComputedStyle(creditEl).textAlign : '',
+            creditAlignLast: creditEl ? getComputedStyle(creditEl).textAlignLast : '',
             pagenoFirst: (first.querySelector('[data-print-pageno]') || {}).textContent || '',
             pagenoLast: (last.querySelector('[data-print-pageno]') || {}).textContent || '',
             footerHasPageno: /الصفحة/.test(footerEl ? footerEl.textContent : ''),
@@ -1335,10 +1402,12 @@ try {
         layout.footerText === layout.expected, layout.footerText.slice(0, 70));
     check('footer: single line fits without losing characters',
         layout.footerFits, layout.footerScroll + ' <= ' + layout.footerClient);
-    /* المطلوب: يمتد النص بعرض الخط الفاصل من الحافة إلى الحافة */
-    check('footer: text spans the full width of the separator line',
-        Math.abs(layout.creditTextWidth - layout.footerWidth) <= 2,
-        'text=' + layout.creditTextWidth + ' line=' + layout.footerWidth);
+    /* المطلوب: يمتد النص بعرض الخط الفاصل من الحافة إلى الحافة.
+       نقيس الفجوة عند الحافة اليسرى (آخر حروف النص العربي) لا عرض المدى،
+       لأن عرض المدى يعطي عرض النص الأصلي لا الممدّد. */
+    check('footer: justified edge to edge (no gap at either end)',
+        layout.creditLeftGap >= -2 && layout.creditLeftGap <= 3,
+        'leftGap=' + layout.creditLeftGap + 'px  textAlign=' + layout.creditAlign + '/' + layout.creditAlignLast);
     check('footer: still exactly one line after justification',
         layout.creditLines === 1, 'lines=' + layout.creditLines + ' rects=' + layout.creditRects);
     check('page number moved into the header (first page)',
