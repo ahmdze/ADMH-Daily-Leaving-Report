@@ -160,7 +160,9 @@ App.Dashboard = (function () {
                 tr.innerHTML = `
                     <td class="py-2 px-2 border border-slate-300 font-bold">${seq}</td>
                     <td class="py-2 px-2 border border-slate-300 text-right font-bold text-slate-900 p-name">${esc(l.empName)}</td>
-                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-700 p-job">${esc(l.jobTitle || '-')}</td>
+                    <!-- العنوان الوظيفي: الصنف على عنصر داخلي لا على الخلية نفسها،
+                         لأن تغيير display على td يُخرجها من نظام الجدول فيختلف ارتفاع الصف -->
+                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-700"><div class="p-job">${esc(l.jobTitle || '-')}</div></td>
                     <td class="py-2 px-2 border border-slate-300">${deptHtml}</td>
                     <td class="py-2 px-2 border border-slate-300">
                         <span class="badge" style="background:${esc(color)}18;color:${esc(color)};border-color:${esc(color)}55">${esc(l.leaveType || '-')}</span>
@@ -456,18 +458,7 @@ App.Dashboard = (function () {
             });
         }
 
-        const pdfBtn = $('btnDashPdf');
-        if (pdfBtn) {
-            pdfBtn.addEventListener('click', () => {
-                withAllRows(() => {
-                    const range = currentRange();
-                    return App.Exporters.pdfFromElement(
-                        $('printableArea'),
-                        'موقف_الإجازات_' + (range.from || 'all') + '.pdf'
-                    );
-                });
-            });
-        }
+        /* أُزيل زر تصدير PDF من الواجهة: الطباعة فقط (مع Excel). */
 
         const printBtn = $('btnDashPrint');
         if (printBtn) {
@@ -487,6 +478,13 @@ App.Dashboard = (function () {
         refresh();
     }
 
+    /** طباعة الموقف من أي مكان (يستدعيه اختصار Ctrl+P في app.js)
+     *  مع ضمان شمول كل السجلات لا الصفحة المعروضة فقط. */
+    function printNow() {
+        return withAllRows(() => App.Exporters.printElement(
+            document.getElementById('printableArea'), 'موقف الإجازات اليومي'));
+    }
+
     function refresh() {
         render();
     }
@@ -498,6 +496,7 @@ App.Dashboard = (function () {
         filtered: filtered,
         currentRange: currentRange,
         focusRecord: focusRecord,
+        printNow: printNow,
         setPageSize: (n) => { pager.pageSize = n; pager.page = 1; render(); }
     };
 })();

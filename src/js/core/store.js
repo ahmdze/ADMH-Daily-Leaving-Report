@@ -844,6 +844,94 @@ App.Store = (function () {
         return emp;
     }
 
+    /* ============================================================
+       ضمان وجود قسم/شعبة قادمة من نماذج الإدخال الحر
+       ============================================================ */
+
+    /** مفتاح مطابقة يتجاهل حالة الأحرف والمسافات المتكررة */
+    function matchKey(s) {
+        return normalizeName(s).replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    /** يبحث عن قسم بالاسم بمطابقة تتجاهل حالة الأحرف والمسافات */
+    function departmentByName(name) {
+        const key = matchKey(name);
+        if (!key) return null;
+        return (state.departments || []).find(d => d && matchKey(d.name) === key) || null;
+    }
+
+    /** يبحث عن شعبة داخل قسم بمطابقة تتجاهل حالة الأحرف والمسافات */
+    function sectionIn(dept, name) {
+        const key = matchKey(name);
+        if (!key || !dept) return null;
+        return (dept.sections || []).find(s => s && matchKey(s.name) === key) || null;
+    }
+
+    /**
+     * يضمن وجود قسم (وشعبة داخله) بالاسم، ويضيف الناقص تلقائياً.
+     * يُستدعى من نموذج الإدخال حيث يمكن للكاتب أن يكتب قسماً أو شعبة
+     * غير موجودة في الدليل، فتُضاف بدل رفض الحفظ.
+     *
+     * @param {string} deptName    اسم القسم كما كتبه المستخدم (قد يكون فارغاً)
+     * @param {string} sectionName اسم الشعبة كما كتبها المستخدم (اختياري)
+     * @returns {{dept: Object|null, section: Object|null, createdDept: boolean, createdSection: boolean}}
+     *          dept/section هما الكائنان المخزَّنان بأسماء مطبَّعة (normalized)
+     */
+    function ensureOrg(deptName, sectionName) {
+        const out = { dept: null, section: null, createdDept: false, createdSection: false };
+
+        /* لا نُنشئ أبداً قسماً بلا اسم — القسم قد يكون غير مطلوب في النموذج */
+        const dName = normalizeName(App.Security.clean(deptName, 120));
+        if (!dName) return out;
+
+        if (!Array.isArray(state.departments)) state.departments = [];
+
+        let dept = departmentByName(dName);
+        if (!dept) {
+            dept = { id: C.uid('d'), name: dName, sections: [] };
+            state.departments.push(dept);
+            out.createdDept = true;
+        }
+        if (!Array.isArray(dept.sections)) dept.sections = [];
+        out.dept = dept;
+
+        const sName = normalizeName(App.Security.clean(sectionName, 120));
+        if (sName) {
+            let sec = sectionIn(dept, sName);
+            if (!sec) {
+                sec = { id: C.uid('s'), name: sName };
+                dept.sections.push(sec);
+                out.createdSection = true;
+            }
+            out.section = sec;
+        }
+
+        if (out.createdDept || out.createdSection) {
+            save([C.KEYS.DEPARTMENTS]);
+
+            if (out.createdDept) {
+                App.Audit.log({
+                    action: 'insert',
+                    entity: 'departments',
+                    recordId: dept.id,
+                    label: 'إضافة قسم تلقائياً من نموذج الإدخال: ' + dept.name,
+                    after: { id: dept.id, name: dept.name }
+                });
+            }
+            if (out.createdSection) {
+                App.Audit.log({
+                    action: 'insert',
+                    entity: 'sections',
+                    recordId: out.section.id,
+                    label: 'إضافة شعبة تلقائياً من نموذج الإدخال: ' + out.section.name + ' في ' + dept.name,
+                    after: { id: out.section.id, name: out.section.name, dept: dept.name }
+                });
+            }
+        }
+
+        return out;
+    }
+
     /** الرصيد المستهلك لموظف في سنة معينة */
     function usedBalance(empId, year) {
         return (state.leaves || [])
@@ -903,6 +991,7 @@ App.Store = (function () {
         employeeById: employeeById,
         employeeByName: employeeByName,
         upsertEmployee: upsertEmployee,
+        ensureOrg: ensureOrg,
         usedBalance: usedBalance,
         openCompensations: openCompensations,
 

@@ -3,7 +3,8 @@
    ------------------------------------------------------------
    الهدف: تقسيم مستند (موقف يومي أو تقرير) إلى صفحات A4 حقيقية، كل
    صفحة تحمل: الترويسة الرسمية المتكررة + رأس الجدول + تذييلاً ثابتاً
-   في سطر واحد مع «الصفحة X من Y».
+   في سطر واحد. رقم الصفحة «الصفحة X من Y» يُكتب داخل الترويسة
+   المتكررة (أسفل «الحالة» و«عدد السجلات») لا في التذييل.
 
    سبب وجود هذا الملف:
      1) كروم لا يدعم counter(page) في CSS، فلا يمكن كتابة رقم الصفحة
@@ -34,6 +35,16 @@ App.PrintLayout = (function () {
     const HOST_ID = 'printHost';
     const PAGE_STATE_CLASSES = ['paginating', 'print-capturing', 'print-measuring'];
 
+    /* مُحدِّد مربع رقم الصفحة داخل الترويسة المتكررة */
+    const PAGENO_SELECTOR = '[data-print-pageno]';
+
+    /* النص الصلب للتذييل — نسخة طبق الأصل من
+       App.Constants.DEFAULT_SETTINGS.printFooterText.
+       وجوده هنا (بلا قراءة أي إعداد) يضمن ألا يُطبع تذييل فارغ أبداً
+       حتى لو فُقد مُثبِّت constants.js أو أُفرغت قيمته. */
+    const FALLBACK_FOOTER_TEXT =
+        'طُبع هذا الموقف عبر نظام موقف الإجازات اليومي الموحد - جميع الحقوق محفوظة للمطور: تقني طبي - احمد زياد رحيمه 07723064622';
+
     /* معرّف تشغيل متزايد: يمنع تشغيلين متوازيين من إفساد بعضهما */
     let runToken = 0;
 
@@ -54,16 +65,22 @@ App.PrintLayout = (function () {
         return (c && c.DEFAULT_SETTINGS) ? c.DEFAULT_SETTINGS : {};
     }
 
+    /**
+     * نص التذييل: صلب في الكود.
+     * لم يعد يُقرأ من إعدادات المستخدم (حُذف حقل الإعدادات)، والمصدر
+     * الوحيد هو App.Constants.DEFAULT_SETTINGS.printFooterText، مع
+     * احتياط داخلي فلا يعود فارغاً أبداً.
+     */
     function footerText() {
-        let s = null;
+        let s = '';
         try {
-            if (window.App && App.Store && App.Store.get && typeof App.Store.get.settings === 'function') {
-                s = App.Store.get.settings();
-            }
+            const d = defaults();
+            if (d && d.printFooterText) s = String(d.printFooterText);
         } catch (e) {
-            s = null;
+            s = '';
         }
-        return (s && s.printFooterText) ? String(s.printFooterText) : String(defaults().printFooterText || '');
+        if (!s) s = FALLBACK_FOOTER_TEXT;
+        return s;
     }
 
     function host() {
@@ -225,20 +242,33 @@ App.PrintLayout = (function () {
         return d;
     }
 
+    /**
+     * يكتب «الصفحة X من Y» في مربع الترقيم داخل الترويسة المتكررة.
+     * محصّن: قد لا تحتوي الترويسة على [data-print-pageno] إطلاقاً
+     * (تقارير أقدم)، أو قد يكون الاستعلام نفسه مرفوضاً.
+     */
+    function setPageNo(root, index, total) {
+        if (!root || !root.querySelector) return null;
+        let box = null;
+        try { box = root.querySelector(PAGENO_SELECTOR); } catch (e) { box = null; }
+        if (!box) return null;
+        box.textContent = 'الصفحة ' + index + ' من ' + total;
+        return box;
+    }
+
+    /**
+     * التذييل: سطر واحد بعرض الصفحة كاملاً، في وسطه نص الإسناد الصلب.
+     * لا رقم صفحة هنا إطلاقاً — الترقيم انتقل إلى الترويسة المتكررة.
+     */
     function buildFooterBlock(text) {
         const f = document.createElement('div');
         f.className = 'print-page-footer';
 
         const credit = document.createElement('span');
         credit.className = 'pf-credit';
-        credit.textContent = text;
-
-        const pageno = document.createElement('span');
-        pageno.className = 'pf-pageno';
-        pageno.textContent = '';
+        credit.textContent = String(text || FALLBACK_FOOTER_TEXT);
 
         f.appendChild(credit);
-        f.appendChild(pageno);
         return f;
     }
 
@@ -468,6 +498,12 @@ App.PrintLayout = (function () {
             headerTpl = document.createElement('div');
         }
 
+        /* 3ب) نحجز ارتفاع سطر «الصفحة X من Y» في الترويسة قبل أي قياس:
+           نضع نصاً مؤقتاً بنفس الشكل، فيُحسب ارتفاع الترويسة الحقيقي في
+           capacityOf()، ولا يتغيّر القياس لاحقاً عند كتابة الرقم النهائي
+           (وإلا فقد يدفع سطر جديد صفاً إلى ما بعد حدّ الصفحة). */
+        setPageNo(headerTpl, 1, 1);
+
         /* 4) تفكيك التدفق: قوالب جداول + صفوف + كتل ذرّية */
         const templates = [];
         const flow = collectFlow(clone, templates);
@@ -494,12 +530,12 @@ App.PrintLayout = (function () {
         /* مستند بلا أي محتوى: صفحة واحدة بترويسة وتذييل */
         if (!state.pages.length) startPage(hostEl, state);
 
-        /* 6) الترقيم: الآن فقط صار المجموع معروفاً. ارتفاع التذييل ثابت
-           فلا يتأثر التقسيم بتغيّر النص. */
+        /* 6) الترقيم: الآن فقط صار المجموع معروفاً. نكتب «الصفحة X من Y»
+           في ترويسة كل صفحة (المربع [data-print-pageno] داخل الترويسة
+           المستنسخة). التذييل لا يحمل أي رقم. */
         const total = state.pages.length;
         state.pages.forEach(function (p, idx) {
-            const pn = p.__foot.querySelector('.pf-pageno');
-            if (pn) pn.textContent = 'الصفحة ' + (idx + 1) + ' من ' + total;
+            setPageNo(p.__head, idx + 1, total);
             /* وسم الصفحات التي لا تحمل أي محتوى (مستند فارغ) */
             if (!p.__flow.children.length) p.setAttribute('data-empty', '1');
         });
@@ -575,6 +611,7 @@ App.PrintLayout = (function () {
             }
 
             document.body.classList.add('paginating');
+            injectPageRule();
 
             if (title) {
                 if (savedTitle === null) savedTitle = document.title;
@@ -747,6 +784,25 @@ App.PrintLayout = (function () {
         if (!document.querySelector('.app-modal-backdrop.show')) document.body.style.overflow = '';
     }
 
+    /** حقن قاعدة @page الصفرية وقت الطباعة المولّدة فقط.
+     *  سبب وجودها هنا لا في الملف: الصفحات المولّدة بعرض A4 كامل (794×1123)
+     *  وتحمل هوامشها داخلياً، فتحتاج هامش صفحة صفرياً. ولو بقيت القاعدة
+     *  مطبَّقة دائماً لفقدت الطباعة المباشرة (Ctrl+P) هوامشها وتُقتطع. */
+    const PAGE_RULE_ID = 'printLayoutPageRule';
+
+    function injectPageRule() {
+        if (document.getElementById(PAGE_RULE_ID)) return;
+        const st = document.createElement('style');
+        st.id = PAGE_RULE_ID;
+        st.textContent = '@page { size: A4 portrait; margin: 0; }';
+        (document.head || document.documentElement).appendChild(st);
+    }
+
+    function removePageRule() {
+        const st = document.getElementById(PAGE_RULE_ID);
+        if (st && st.parentNode) st.parentNode.removeChild(st);
+    }
+
     function cleanup() {
         runToken++;
 
@@ -757,6 +813,7 @@ App.PrintLayout = (function () {
             PAGE_STATE_CLASSES.forEach(function (c) { document.body.classList.remove(c); });
         }
 
+        removePageRule();
         closeProgressModals();
 
         if (savedTitle !== null) {

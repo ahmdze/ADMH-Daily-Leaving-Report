@@ -127,9 +127,6 @@
                         <button type="button" id="btnDashExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-file-excel"></i> Excel
                         </button>
-                        <button type="button" id="btnDashPdf" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-file-pdf"></i> PDF
-                        </button>
                         <button type="button" id="btnDashPrint" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-print"></i> طباعة
                         </button>
@@ -223,6 +220,8 @@
                             <p><strong>تاريخ الإصدار:</strong> <span id="rptCreatedDate">--</span></p>
                             <p><strong>عدد السجلات:</strong> <span id="rptCount">0</span></p>
                             <p><strong>الحالة:</strong> <span class="text-emerald-700 font-bold">مصدّق رسمياً</span></p>
+                            <!-- يملؤه محرّك الترقيم في كل صفحة: «الصفحة X من Y» -->
+                            <p data-print-pageno class="font-bold text-slate-800"></p>
                         </div>
                     </div>
                 </div>
@@ -319,15 +318,17 @@
                             </div>
                             <div>
                                 <label for="entryDept" class="block text-[11px] font-bold text-slate-600 mb-1">القسم الرئيسي</label>
-                                <select id="entryDept" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
-                                    <option value="">اختر القسم...</option>
-                                </select>
+                                <input type="text" id="entryDept" list="entryDeptList" autocomplete="off"
+                                       placeholder="اختر من القائمة أو اكتب قسماً جديداً..."
+                                       class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                <datalist id="entryDeptList"></datalist>
                             </div>
                             <div>
                                 <label for="entrySection" class="block text-[11px] font-bold text-slate-600 mb-1">الشعبة / الوحدة</label>
-                                <select id="entrySection" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
-                                    <option value="">بدون شعبة</option>
-                                </select>
+                                <input type="text" id="entrySection" list="entrySectionList" autocomplete="off"
+                                       placeholder="اختر من القائمة أو اكتب شعبة جديدة..."
+                                       class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                <datalist id="entrySectionList"></datalist>
                             </div>
                             <div>
                                 <label for="entryType" class="block text-[11px] font-bold text-slate-600 mb-1">نوع الإجازة <span class="text-rose-600">*</span></label>
@@ -495,9 +496,6 @@
                     <button type="button" id="btnReportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
                         <i class="fa-solid fa-file-excel"></i> Excel
                     </button>
-                    <button type="button" id="btnReportPdf" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
-                        <i class="fa-solid fa-file-pdf"></i> PDF
-                    </button>
                     <button type="button" id="btnReportPrint" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
                         <i class="fa-solid fa-print"></i> طباعة
                     </button>
@@ -619,7 +617,6 @@
                         <div><label for="setFooterManager" class="block text-[11px] font-bold text-slate-600 mb-1">توقيع ثانٍ (يسار)</label><input type="text" id="setFooterManager" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
                         <div><label for="setOperatorName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم مشغّل النظام (يظهر في سجل التدقيق)</label><input type="text" id="setOperatorName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
                         <div><label for="setRptTitle" class="block text-[11px] font-bold text-slate-600 mb-1">عنوان الموقف المطبوع</label><input type="text" id="setRptTitle" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
-                        <div class="md:col-span-2"><label for="setPrintFooterText" class="block text-[11px] font-bold text-slate-600 mb-1">نص التذييل الثابت أسفل كل صفحة (طباعة وتصدير)</label><input type="text" id="setPrintFooterText" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"><p class="text-[10px] text-slate-500 mt-1">يظهر في سطر واحد أسفل كل صفحة، ويُضاف إليه «الصفحة X من Y» تلقائياً.</p></div>
                     </div>
 
                     <div class="border-t border-slate-200 pt-4">

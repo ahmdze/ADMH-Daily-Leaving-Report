@@ -64,12 +64,8 @@ App.Reports = (function () {
         return isNaN(n) ? 0 : n;
     }
 
-    /** تقصير نص طويل للعرض داخل الجداول */
-    function clip(text, max) {
-        const s = (text === undefined || text === null) ? '' : String(text);
-        const m = max || 60;
-        return s.length > m ? s.slice(0, m) + '…' : s;
-    }
+    /* ملاحظة: أُزيلت دالة قصّ النصوص (clip) التي كانت تقتطع السبب والملاحظات
+       بعلامة «…»، لأن المطلوب ألا يُقتطع أي حقل: يلتف النص كاملاً داخل خليته. */
 
     /** تاريخ (ميلادي) من أي قيمة نصية أو زمنية — بدون toISOString */
     function isoOf(value) {
@@ -466,6 +462,9 @@ App.Reports = (function () {
                         '<p><strong>تاريخ الإصدار:</strong> <span>' + App.Security.esc(Dates.formatFull(Dates.todayISO())) + '</span></p>' +
                         '<p><strong>وقت الإصدار:</strong> <span>' + App.Security.esc(nowTime()) + '</span></p>' +
                         '<p><strong>حالة التقرير:</strong> <span class="text-emerald-700 font-bold">مصدّق رسمياً</span></p>' +
+                        /* يملؤه محرّك الترقيم App.PrintLayout في كل صفحة: «الصفحة X من Y».
+                           يبقى فارغاً في المصدر ومخفياً على الشاشة (انظر [data-print-pageno] في app.css). */
+                        '<p data-print-pageno class="font-bold text-slate-800"></p>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -877,7 +876,10 @@ App.Reports = (function () {
                 rep.employees.map((e, i) => [
                     String(i + 1),
                     { html: App.Security.esc(e.name), cls: 'text-right font-bold' },
-                    { html: App.Security.esc(e.jobTitle || '—'), cls: 'text-right' },
+                    /* العنوان الوظيفي: الصنف على عنصر داخلي لا على الخلية نفسها،
+                       لأن أي display غير افتراضي على td يُخرجها من نظام الجدول
+                       فيختلف ارتفاع الخلية عن بقية خلايا الصف. */
+                    { html: '<div class="p-job">' + App.Security.esc(e.jobTitle || '—') + '</div>', cls: 'text-right' },
                     String(e.count),
                     String(e.days)
                 ]).concat([[
@@ -1003,7 +1005,7 @@ App.Reports = (function () {
                         { html: App.Security.esc(c.empName), cls: 'text-right font-bold' },
                         App.Security.esc(Dates.formatDMY(c.dueDate) || '—'),
                         String(c.days),
-                        { html: App.Security.esc(clip(c.reason, 50) || '—'), cls: 'text-right' },
+                        { html: App.Security.esc(c.reason || '—'), cls: 'text-right' },
                         {
                             /* «حالة التسديد» ليست «حالة السجل»: تبقى في الطباعة و PDF
                                لأنها جوهر تقرير الأيام التعويضية. */
@@ -1045,7 +1047,7 @@ App.Reports = (function () {
             cells.push(App.Security.esc(Dates.formatDMY(r.fromDate)));
             cells.push(App.Security.esc(Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate)));
             cells.push({ html: statusChip(r.status), cls: 'no-print no-export' });
-            cells.push({ html: App.Security.esc(clip(r.notes, 60) || '—'), cls: 'text-right' });
+            cells.push({ html: App.Security.esc(r.notes || '—'), cls: 'text-right' });
             return cells;
         });
 
@@ -1080,7 +1082,7 @@ App.Reports = (function () {
             App.Security.esc(Dates.formatDMY(r.fromDate)),
             App.Security.esc(Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate)),
             { html: statusChip(r.status), cls: 'no-print no-export' },
-            { html: App.Security.esc(clip(r.notes, 50) || '—'), cls: 'text-right' }
+            { html: App.Security.esc(r.notes || '—'), cls: 'text-right' }
         ]);
         return tableHtml(cols, body);
     }
@@ -1143,9 +1145,9 @@ App.Reports = (function () {
         }
     }
 
-    /** تعطيل أزرار التصدير قبل إنشاء أي تقرير */
+    /** تعطيل أزرار التصدير والطباعة قبل إنشاء أي تقرير */
     function syncButtons() {
-        ['btnReportExcel', 'btnReportPdf', 'btnReportPrint'].forEach(id => {
+        ['btnReportExcel', 'btnReportPrint'].forEach(id => {
             const b = byId(id);
             if (b) b.disabled = !hasReport;
         });
@@ -1278,24 +1280,7 @@ App.Reports = (function () {
         return ok;
     }
 
-    /** تصدير PDF من عنصر التقرير */
-    function exportPdf() {
-        const target = byId('reportOutput');
-        if (!target || !hasReport) {
-            const rep = run({ silent: true });
-            if (!rep) { App.Notify.toast('يرجى إنشاء التقرير أولاً', 'warning'); return Promise.resolve(false); }
-        }
-        const el = byId('reportOutput');
-        if (!el) return Promise.resolve(false);
-
-        const title = (current && current.title) || 'تقرير';
-        const fileName = 'تقرير_' + App.Security.safeFileName((current && current.subject) || 'التقرير', 'التقرير') +
-            '_' + Dates.todayISO() + '.pdf';
-
-        return App.Exporters.pdfFromElement(el, fileName)
-            .then(() => { App.Notify.toast('تم إنشاء ملف PDF', 'success'); return true; })
-            .catch(() => false);
-    }
+    /** تصدير PDF أُزيل من الواجهة — الطباعة فقط عبر printReport(). */
 
     /** طباعة التقرير فقط */
     function printReport() {
@@ -1325,7 +1310,6 @@ App.Reports = (function () {
             reportOutput: byId('reportOutput'),
             btnRunReport: byId('btnRunReport'),
             btnReportExcel: byId('btnReportExcel'),
-            btnReportPdf: byId('btnReportPdf'),
             btnReportPrint: byId('btnReportPrint')
         };
     }
@@ -1333,7 +1317,6 @@ App.Reports = (function () {
     function wire() {
         if (els.btnRunReport) els.btnRunReport.addEventListener('click', () => run());
         if (els.btnReportExcel) els.btnReportExcel.addEventListener('click', exportExcel);
-        if (els.btnReportPdf) els.btnReportPdf.addEventListener('click', exportPdf);
         if (els.btnReportPrint) els.btnReportPrint.addEventListener('click', printReport);
 
         if (els.reportMode) els.reportMode.addEventListener('change', () => { syncBoxes(); run({ silent: true }); });

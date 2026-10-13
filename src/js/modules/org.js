@@ -14,8 +14,13 @@ App.Org = (function () {
 
     function depts() { return Store.get.departments(); }
 
+    /** مفتاح مطابقة يتجاهل حالة الأحرف والمسافات — نفس منطق المخزن */
+    function matchKey(s) { return Store.normalizeName(s).toLowerCase(); }
+
     function findByName(name) {
-        return depts().find(d => d.name === name) || null;
+        const key = matchKey(name);
+        if (!key) return null;
+        return depts().find(d => d && matchKey(d.name) === key) || null;
     }
 
     function sectionsOf(deptName) {
@@ -23,7 +28,30 @@ App.Org = (function () {
         return d ? d.sections : [];
     }
 
-    /* ---------------- القوائم المنسدلة ---------------- */
+    /* ---------------- القوائم المنسدلة ----------------
+       حقول نموذج الإدخال (#entryDept و#entrySection) أصبحت حقول كتابة
+       مع قوائم اقتراح (datalist)، أما بقية الحقول فما زالت selects. */
+
+    /** يبني قائمة الاقتراحات لأقسام نموذج الإدخال */
+    function populateDeptDatalist() {
+        const list = document.getElementById('entryDeptList');
+        if (!list) return;
+        list.innerHTML = depts()
+            .map(d => `<option value="${esc(d.name)}"></option>`)
+            .join('');
+    }
+
+    /**
+     * يبني قائمة اقتراحات الشعب لقسم معيّن.
+     * لا يلمس قيمة #entrySection إطلاقاً حتى لا يُمحى ما كتبه المستخدم.
+     */
+    function populateSectionDatalist(deptName) {
+        const list = document.getElementById('entrySectionList');
+        if (!list) return;
+        list.innerHTML = sectionsOf(deptName)
+            .map(s => `<option value="${esc(s.name)}"></option>`)
+            .join('');
+    }
 
     function populateSelects() {
         const list = depts();
@@ -37,14 +65,8 @@ App.Org = (function () {
             filterDept.value = cur;
         }
 
-        /* نموذج الإدخال */
-        const entryDept = document.getElementById('entryDept');
-        if (entryDept) {
-            const cur = entryDept.value;
-            entryDept.innerHTML = '<option value="">اختر القسم...</option>' +
-                list.map(d => `<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('');
-            entryDept.value = cur;
-        }
+        /* نموذج الإدخال: قسم قابل للكتابة ← قائمة اقتراحات */
+        populateDeptDatalist();
 
         /* إضافة شعبة */
         const newSectionDept = document.getElementById('newSectionDept');
@@ -313,6 +335,9 @@ App.Org = (function () {
 
     function refresh() {
         populateSelects();
+        /* قائمة الشعب تتبع ما هو مكتوب في حقل القسم حالياً */
+        const entryDept = document.getElementById('entryDept');
+        populateSectionDatalist(entryDept ? entryDept.value : '');
         render();
     }
 
@@ -321,6 +346,7 @@ App.Org = (function () {
         refresh: refresh,
         render: render,
         populateSelects: populateSelects,
+        populateSectionDatalist: populateSectionDatalist,
         findByName: findByName,
         sectionsOf: sectionsOf,
         addDept: addDept,

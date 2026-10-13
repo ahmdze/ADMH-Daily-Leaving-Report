@@ -174,6 +174,24 @@ App.App = (function () {
         try { fn(); } catch (e) { console.error('[App] خطأ في ' + label, e); }
     }
 
+    /** يطبع العرض الحالي عبر محرّك صفحات A4 المولّد.
+     *  يُستدعى من زر الطباعة ومن اختصار Ctrl+P معاً حتى لا تختلف النتيجة. */
+    function printCurrentView() {
+        if (currentTab === 'reports') {
+            const btn = $('btnReportPrint');
+            if (btn) { btn.click(); return true; }
+        }
+        if (currentTab === 'analytics' || currentTab === 'settings') {
+            App.Notify.toast('الطباعة متاحة من تبويبَي «الموقف اليومي» و«التقارير»', 'info');
+            return false;
+        }
+        if (App.Dashboard && App.Dashboard.printNow) {
+            App.Dashboard.printNow();
+            return true;
+        }
+        return false;
+    }
+
     function refreshAll() {
         safe(() => App.Settings && App.Settings.applyToUI(), 'applyToUI');
         safe(() => App.Org && App.Org.refresh(), 'Org');
@@ -282,6 +300,15 @@ App.App = (function () {
         /* اختصارات لوحة المفاتيح */
         document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey)) return;
+
+            /* Ctrl+P: نمرّره على مسار الطباعة المولّد (صفحات A4 + تذييل + ترقيم)
+               بدل طباعة المتصفح الخام التي تفقد الهوامش والترقيم. */
+            if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                printCurrentView();
+                return;
+            }
+
             if (e.key === 's') {
                 e.preventDefault();
                 if (currentTab === 'entry') {
@@ -311,6 +338,7 @@ App.App = (function () {
         showTab: showTab,
         refreshAll: refreshAll,
         updateBanner: updateBanner,
+        printCurrentView: printCurrentView,
         currentTab: () => currentTab
     };
 })();

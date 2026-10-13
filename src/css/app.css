@@ -122,6 +122,9 @@ table th {
 /* ===================== الفورم غير المحفوظ ===================== */
 .is-dirty { box-shadow: inset 0 3px 0 0 #f59e0b; }
 
+/* رقم الصفحة يُملأ في صفحات A4 المولّدة فقط، فلا يظهر على الشاشة */
+[data-print-pageno] { display: none; }
+
 /* ===================== توقيعات المطبوع =====================
    float صريح بدل grid لأن html2canvas لا يحترم ترتيب RTL في grid،
    فيظهر التوقيعان معكوسين في ملف PDF. */
@@ -140,26 +143,33 @@ table th {
 .print-signatures .signature-clear { clear: both; }
 
 /* ===================== أعمدة الجدول في الطباعة =====================
-   إعدادات محايدة تعمل في الشاشة وفي صفحات A4 المولّدة أيضاً،
-   فلا تتكرر القواعد بين مسار الطباعة المباشرة ومسار التصدير. */
-.p-name { white-space: nowrap; }
+   إعدادات محايدة تعمل في الشاشة وفي صفحات A4 المولّدة أيضاً.
+   تنبيه: لا تُغيَّر قيمة display لخلية الجدول نفسها (td) — تغييرها
+   يُخرج الخلية من نظام الجدول فيختل ارتفاع الصف وتتجاوز الكتابة حدودها.
+   لذلك نضع أي حصر نصّي على عنصر داخلي لا على الخلية. */
 
-/* العنوان الوظيفي: سطران كحد أقصى */
+/* اسم الموظف: يبقى بسطر واحد متى اتسع العمود، ويلتف إن طال بلا قص */
+.p-name {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* العنوان الوظيفي: خط أصغر قليلاً ليتوزّع على سطرين ويظهر كاملاً بلا قص */
 .p-job {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: .92em;
+    line-height: 1.3;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 /* القسم غامق وتحته الشعبة بخط عادي */
-.p-dept-name { font-weight: 700; }
-.p-dept-section { font-weight: 400; color: #475569; font-size: .92em; }
+.p-dept-name { font-weight: 700; word-break: break-word; }
+.p-dept-section { font-weight: 400; color: #475569; font-size: .92em; word-break: break-word; }
 
 /* السبب والملاحظات: خط أصغر حتى تظهر كاملة.
-   الحجم على الشاشة 11px، وفي المطبوع 7.5pt (انظر print.css وقواعد الطباعة أدناه). */
+   الحجم على الشاشة 10px، وفي المطبوع أصغر (انظر print.css وقواعد الطباعة أدناه). */
 .p-notes {
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.4;
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -291,11 +301,20 @@ table th {
     .print-container { overflow: visible !important; }
     .print-container img { max-width: 100% !important; }
 
-    /* الشارات تفقد ألوانها في الطباعة لتوفير الحبر */
+    /* الشارات تفقد ألوانها في الطباعة لتوفير الحبر،
+       وتُسمح لها بالالتفاف حتى لا تتجاوز حدود عمودها */
     .badge {
         border: 1px solid #666 !important;
         background: #fff !important;
         color: #000 !important;
+        white-space: normal !important;
+    }
+
+    /* لا يُقتطع أي نص في الطباعة: يلتف داخل خليته */
+    .print-table td,
+    .print-table th {
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
 
     .page-break { page-break-before: always; break-before: page; }

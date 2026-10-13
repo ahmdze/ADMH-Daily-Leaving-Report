@@ -109,7 +109,7 @@ try {
     check('hospital from settings', !!boot.hospital, boot.hospital);
 
     const dropdowns = await page.evaluate(() => ({
-        entryDept: document.querySelectorAll('#entryDept option').length,
+        entryDept: document.querySelectorAll('#entryDeptList option').length,
         entryType: document.querySelectorAll('#entryType option').length,
         filterDept: document.querySelectorAll('#filterDept option').length,
         anDept: document.querySelectorAll('#anDept option').length,
@@ -119,7 +119,7 @@ try {
         deptCards: document.querySelectorAll('#deptList > div').length,
         holidayRows: document.querySelectorAll('#holidayList tr').length
     }));
-    check('entry dept dropdown populated', dropdowns.entryDept === 7, dropdowns.entryDept);
+    check('entry dept datalist populated with all departments', dropdowns.entryDept === 6, dropdowns.entryDept);
     check('entry type dropdown populated', dropdowns.entryType === 7, dropdowns.entryType);
     check('dashboard dept filter populated', dropdowns.filterDept === 7, dropdowns.filterDept);
     check('analytics dept filter populated', dropdowns.anDept === 7, dropdowns.anDept);
@@ -486,14 +486,14 @@ try {
     const entryProbe = await page.evaluate(() => ({
         analysis: document.getElementById('entryAnalysis').textContent.replace(/\s+/g, ' ').trim().slice(0, 200),
         policy: document.getElementById('entryPolicy').textContent.replace(/\s+/g, ' ').trim().slice(0, 120),
-        sections: document.querySelectorAll('#entrySection option').length,
+        sections: document.querySelectorAll('#entrySectionList option').length,
         dirty: App.Entry.isDirty(),
         compShown: /تعويضي/.test(document.getElementById('entryAnalysis').textContent)
     }));
     check('live day analysis shown in entry form', entryProbe.analysis.length > 20, entryProbe.analysis.slice(0, 80));
     check('analysis reflects holiday policy (compensatory day)', entryProbe.compShown);
     check('policy panel rendered', entryProbe.policy.length > 20, entryProbe.policy.slice(0, 60));
-    check('sections dropdown follows department', entryProbe.sections === 4, entryProbe.sections);
+    check('section datalist follows the typed department', entryProbe.sections === 3, entryProbe.sections);
     check('form marked dirty after edits', entryProbe.dirty === true);
     await page.screenshot({ path: path.join(SHOTS, '07-entry-form.png') });
 
@@ -628,14 +628,31 @@ try {
         if (b) b.click();
     });
     await new Promise(r => setTimeout(r, 900));
-    await page.click('#btnReportPdf');
+    /* أزرار PDF أُزيلت من الواجهة بطلب المستخدم: نستدعي المحرك مباشرةً
+       للتأكد من أن المسار ما زال سليماً، ونفحص غياب الأزرار. */
+    const pdfButtonProbe = await page.evaluate(() => ({
+        dashPdf: !!document.getElementById('btnDashPdf'),
+        reportPdf: !!document.getElementById('btnReportPdf'),
+        printButtons: !!document.getElementById('btnDashPrint') && !!document.getElementById('btnReportPrint')
+    }));
+    check('PDF buttons removed from every screen',
+        pdfButtonProbe.dashPdf === false && pdfButtonProbe.reportPdf === false,
+        'dash=' + pdfButtonProbe.dashPdf + ' report=' + pdfButtonProbe.reportPdf);
+    check('print buttons still present', pdfButtonProbe.printButtons);
+
+    const directPdf = await page.evaluate(async () => {
+        const res = await App.PrintLayout.toPdf(document.getElementById('reportOutput'), 'report-direct.pdf');
+        App.PrintLayout.cleanup();
+        return res.pages;
+    });
+    check('print engine still produces pages for the report', directPdf >= 1, directPdf);
     let pdfFile = null;
     for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 500));
         const files = fs.readdirSync(DL).filter(f => f.endsWith('.pdf'));
         if (files.length) { pdfFile = files[0]; break; }
     }
-    check('PDF export produced a real .pdf file', !!pdfFile, pdfFile || 'none');
+    check('PDF path still produces a real .pdf file', !!pdfFile, pdfFile || 'none');
     if (pdfFile) {
         const size = fs.statSync(path.join(DL, pdfFile)).size;
         check('PDF file is non-trivial in size', size > 10000, size + ' bytes');
@@ -1108,6 +1125,7 @@ try {
             statusTdClass: tds[7] ? tds[7].className : 'MISSING',
             nameClass: tds[1].className,
             jobClass: tds[2].className,
+            jobHtml: tds[2].innerHTML,
             deptHtml: tds[3].innerHTML,
             notesClass: notesTd.className,
             rowText: row.textContent.replace(/\s+/g, ' ').trim(),
@@ -1121,7 +1139,10 @@ try {
     check('issue 3: status cell is excluded from print/export',
         /no-print/.test(cells.statusTdClass) && /no-export/.test(cells.statusTdClass), cells.statusTdClass);
     check('issue 4: employee name kept on one line (p-name)', /p-name/.test(cells.nameClass), cells.nameClass);
-    check('issue 4: job title clamped to two lines (p-job)', /p-job/.test(cells.jobClass), cells.jobClass);
+    /* الفئة على عنصر داخلي لا على الخلية نفسها، وإلا خرجت الخلية من نظام الجدول */
+    check('issue 4: job title class sits on an inner div, not the cell',
+        /<div class="p-job">/.test(cells.jobHtml) && !/\bp-job\b/.test(cells.jobClass),
+        cells.jobHtml.replace(/\s+/g, ' ').slice(0, 90));
     check('issue 4: department bold with section underneath',
         /p-dept-name/.test(cells.deptHtml) && /p-dept-section/.test(cells.deptHtml),
         cells.deptHtml.replace(/\s+/g, ' ').slice(0, 120));
@@ -1166,8 +1187,8 @@ try {
             pageWidth: first.getBoundingClientRect().width,
             pageHeight: first.getBoundingClientRect().height,
             credit: (first.querySelector('.pf-credit') || {}).textContent || '',
-            page1: (first.querySelector('.pf-pageno') || {}).textContent || '',
-            lastPage: (last.querySelector('.pf-pageno') || {}).textContent || '',
+            page1: (first.querySelector('[data-print-pageno]') || {}).textContent || '',
+            lastPage: (last.querySelector('[data-print-pageno]') || {}).textContent || '',
             noPrintLeft: first.querySelectorAll('.no-print').length,
             statusChips: first.querySelectorAll('.status-chip').length,
             statusHeaderCells: [].slice.call(first.querySelectorAll('th')).filter(function (th) { return th.textContent.indexOf('الحالة') !== -1; }).length,
@@ -1186,7 +1207,10 @@ try {
                 return Math.round(bottom - top);
             }),
             notesFontSize: notes ? getComputedStyle(notes).fontSize : 'none',
-            screenNotesFontSize: onScreenNotes ? getComputedStyle(onScreenNotes).fontSize : 'none'
+            screenNotesFontSize: onScreenNotes ? getComputedStyle(onScreenNotes).fontSize : 'none',
+            /* خط بقية الجدول في الصفحة نفسها — للمقارنة */
+            tableFontSize: first.querySelector('td:not(.p-notes)')
+                ? getComputedStyle(first.querySelector('td:not(.p-notes)')).fontSize : 'none'
         };
         App.PrintLayout.cleanup();
         out.hostCleared = host.children.length === 0;
@@ -1214,9 +1238,9 @@ try {
         pages.rowsTotal === 3, 'sum=' + pages.rowsTotal + ' perPage=[' + pages.rowsPerPage.join(',') + ']');
     check('engine: no .no-print nodes survive pagination', pages.noPrintLeft === 0, pages.noPrintLeft);
     check('engine: cleanup empties the host', pages.hostCleared === true);
-    check('issue 8: notes font is smaller inside the printed page',
-        parseFloat(pages.notesFontSize) < parseFloat(pages.screenNotesFontSize),
-        pages.notesFontSize + ' < ' + pages.screenNotesFontSize);
+    check('issue 8: notes render smaller than the rest of the printed table',
+        parseFloat(pages.notesFontSize) < parseFloat(pages.tableFontSize),
+        'notes=' + pages.notesFontSize + ' vs table=' + pages.tableFontSize);
 
     /* --- لقطة بصرية لصفحة A4 مولّدة: تحقق بشري من التنسيق --- */
     await p4.evaluate(async () => {
@@ -1229,6 +1253,161 @@ try {
     if (pageShot) await pageShot.screenshot({ path: path.join(SHOTS, '10-print-page.png') });
     await p4.evaluate(() => { App.PrintLayout.cleanup(); });
     await new Promise(r => setTimeout(r, 300));
+
+    /* --- Phase M: تذييل صلب في سطر واحد، رقم الصفحة في الترويسة، وسلامة الخلايا --- */
+    const layout = await p4.evaluate(async () => {
+        document.body.classList.add('print-capturing');
+        const res = await App.PrintLayout.paginate(document.getElementById('printableArea'));
+        const first = res.pages[0];
+        const last = res.pages[res.pages.length - 1];
+        const footerEl = first.querySelector('.print-page-footer');
+        const creditEl = first.querySelector('.pf-credit') || footerEl;
+
+        const row = first.querySelector('tbody tr');
+        const heights = row ? [].slice.call(row.children).map(td => td.offsetHeight) : [];
+
+        const badge = first.querySelector('tbody .badge');
+        let badgeInside = null;
+        if (badge) {
+            const b = badge.getBoundingClientRect();
+            const cell = badge.closest('td').getBoundingClientRect();
+            badgeInside = b.left >= cell.left - 1 && b.right <= cell.right + 1;
+        }
+
+        let clipped = 0;
+        first.querySelectorAll('td').forEach(td => {
+            if (td.scrollWidth > td.clientWidth + 1) clipped++;
+        });
+
+        const out = {
+            total: res.total,
+            footerText: (creditEl ? creditEl.textContent : '').trim(),
+            expected: App.Constants.DEFAULT_SETTINGS.printFooterText,
+            footerFits: footerEl ? footerEl.scrollWidth <= footerEl.clientWidth + 1 : false,
+            footerScroll: footerEl ? footerEl.scrollWidth : 0,
+            footerClient: footerEl ? footerEl.clientWidth : 0,
+            pagenoFirst: (first.querySelector('[data-print-pageno]') || {}).textContent || '',
+            pagenoLast: (last.querySelector('[data-print-pageno]') || {}).textContent || '',
+            footerHasPageno: /الصفحة/.test(footerEl ? footerEl.textContent : ''),
+            heights: heights,
+            equalHeights: heights.length > 1 && heights.every(h => Math.abs(h - heights[0]) <= 1),
+            badgeInside: badgeInside,
+            clipped: clipped,
+            headerRepeated: res.pages.every(p => p.querySelector('[data-print-pageno]'))
+        };
+        App.PrintLayout.cleanup();
+        return out;
+    });
+    check('footer: hard-coded text rendered complete',
+        layout.footerText === layout.expected, layout.footerText.slice(0, 70));
+    check('footer: single line fits without losing characters',
+        layout.footerFits, layout.footerScroll + ' <= ' + layout.footerClient);
+    check('page number moved into the header (first page)',
+        layout.pagenoFirst === 'الصفحة 1 من ' + layout.total, layout.pagenoFirst);
+    check('page number moved into the header (last page)',
+        layout.pagenoLast === 'الصفحة ' + layout.total + ' من ' + layout.total, layout.pagenoLast);
+    check('page number removed from the footer', layout.footerHasPageno === false);
+    check('every cell in a row has the same height', layout.equalHeights, layout.heights.join(','));
+    check('leave-type badge stays inside its own cell', layout.badgeInside === true);
+    check('no cell overflows its own box', layout.clipped === 0, layout.clipped);
+    check('page-number placeholder repeated in every header', layout.headerRepeated);
+
+    /* --- حقول القسم والشعبة: كتابة + إضافة تلقائية --- */
+    const orgEdit = await p4.evaluate(async () => {
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        const $ = (id) => document.getElementById(id);
+        App.App.showTab('entry');
+
+        const dept = $('entryDept');
+        const sec = $('entrySection');
+        const out = {
+            deptTag: dept ? dept.tagName : 'MISSING',
+            deptList: dept ? dept.getAttribute('list') : '',
+            secTag: sec ? sec.tagName : 'MISSING',
+            deptOptions: document.querySelectorAll('#entryDeptList option').length,
+            deptsBefore: App.Store.get.departments().length
+        };
+        if (!dept || !sec) return out;
+
+        const fill = (id, value, evt) => {
+            const el = $(id);
+            el.value = value;
+            el.dispatchEvent(new Event(evt || 'input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        const saveLeave = async (name, from, to) => {
+            fill('entryEmpName', name);
+            fill('entryJobTitle', 'فني');
+            fill('entryFromDate', from, 'change');
+            fill('entryToDate', to, 'change');
+            $('entryForm').requestSubmit();
+            await wait(900);
+        };
+
+        /* (1) قسم جديد + شعبة جديدة */
+        fill('entryDept', 'قسم اختبار الكتابة');
+        await wait(350);
+        fill('entrySection', 'شعبة اختبار');
+        out.sectionOptionsForNewDept = document.querySelectorAll('#entrySectionList option').length;
+        await saveLeave('موظف قسم جديد', '2026-11-01', '2026-11-02');
+
+        const depts = App.Store.get.departments();
+        const created = depts.find(d => d.name === 'قسم اختبار الكتابة');
+        const rec1 = App.Store.get.leaves().find(l => l.empName === 'موظف قسم جديد');
+        out.deptsAfter = depts.length;
+        out.createdDept = !!created;
+        out.createdSection = !!(created && created.sections.some(s => s.name === 'شعبة اختبار'));
+        out.recordDept = rec1 ? rec1.dept : '';
+        out.recordSection = rec1 ? rec1.section : '';
+
+        /* (2) قسم موجود + شعبة جديدة */
+        const existing = App.Store.get.departments().find(d => /الباطنية/.test(d.name));
+        out.existingDeptName = existing ? existing.name : '';
+        out.sectionsBefore = existing ? existing.sections.length : -1;
+        fill('entryDept', existing ? existing.name : '');
+        await wait(350);
+        /* قائمة الاقتراحات تتبع القسم المكتوب */
+        out.sectionOptionsForExistingDept = document.querySelectorAll('#entrySectionList option').length;
+        fill('entrySection', 'شعبة فرعية جديدة');
+        await saveLeave('موظف شعبة جديدة', '2026-11-03', '2026-11-04');
+
+        const depts2 = App.Store.get.departments();
+        const target = depts2.find(d => d.name === out.existingDeptName);
+        out.deptsAfterSecond = depts2.length;
+        out.sectionsAfter = target ? target.sections.length : -1;
+        out.sectionAdded = !!(target && target.sections.some(s => s.name === 'شعبة فرعية جديدة'));
+
+        /* (3) قسم موجود + شعبة موجودة → لا إضافة */
+        fill('entryDept', out.existingDeptName);
+        await wait(300);
+        fill('entrySection', target && target.sections[0] ? target.sections[0].name : '');
+        await saveLeave('موظف بلا إضافة', '2026-11-05', '2026-11-06');
+        out.deptsAfterThird = App.Store.get.departments().length;
+        out.filtersIntact = document.querySelectorAll('#filterDept option').length > 1;
+
+        return out;
+    });
+    check('org: department field is a typeable input', orgEdit.deptTag === 'INPUT', orgEdit.deptTag);
+    check('org: section field is a typeable input', orgEdit.secTag === 'INPUT', orgEdit.secTag);
+    check('org: department datalist is populated', orgEdit.deptOptions > 1, orgEdit.deptOptions);
+    check('org: section datalist follows the typed department',
+        orgEdit.sectionOptionsForExistingDept > 0, orgEdit.sectionOptionsForExistingDept);
+    check('org: a brand-new department starts with no section suggestions',
+        orgEdit.sectionOptionsForNewDept === 0, orgEdit.sectionOptionsForNewDept);
+    check('org: new department + new section auto-created',
+        orgEdit.createdDept && orgEdit.createdSection && orgEdit.deptsAfter === orgEdit.deptsBefore + 1,
+        'depts ' + orgEdit.deptsBefore + '→' + orgEdit.deptsAfter);
+    check('org: saved record uses the typed names',
+        orgEdit.recordDept === 'قسم اختبار الكتابة' && orgEdit.recordSection === 'شعبة اختبار',
+        orgEdit.recordDept + ' / ' + orgEdit.recordSection);
+    check('org: new section appended under an existing department',
+        orgEdit.sectionAdded && orgEdit.deptsAfterSecond === orgEdit.deptsAfter &&
+        orgEdit.sectionsAfter === orgEdit.sectionsBefore + 1,
+        'sections ' + orgEdit.sectionsBefore + '→' + orgEdit.sectionsAfter + ', depts ' + orgEdit.deptsAfterSecond);
+    check('org: existing department + existing section adds nothing',
+        orgEdit.deptsAfterThird === orgEdit.deptsAfterSecond, orgEdit.deptsAfterThird);
+    check('org: other department selects still work', orgEdit.filtersIntact === true);
 
     /* --- Issue 7 + 6 in the real PDF file --- */
     const pdfRes = await p4.evaluate(async () => {
@@ -1306,7 +1485,7 @@ try {
         };
     });
     check('issue 11: apply-to-all updated every employee balance',
-        bal.applied.length === 2 && bal.applied.every(v => v === 30), bal.applied.join(','));
+        bal.applied.length >= 2 && bal.applied.every(v => v === 30), bal.applied.join(','));
 
     const balReport = await p4.evaluate(async () => {
         App.App.showTab('reports');
@@ -1316,10 +1495,10 @@ try {
         document.getElementById('btnRunReport').click();
         await new Promise(r => setTimeout(r, 1200));
         const txt = document.getElementById('reportOutput').textContent;
-        return { has30: /30/.test(txt), has21: /21/.test(txt), sample: txt.replace(/\s+/g, ' ').slice(0, 400) };
+        return { has30: /30/.test(txt), sample: txt.replace(/\s+/g, ' ').slice(0, 300) };
     });
     check('issue 11: balance report reflects the new 30-day balance',
-        balReport.has30 === true, balReport.has21 ? 'still contains 21' : 'ok');
+        balReport.has30 === true, balReport.sample.slice(0, 120));
 
     /* --- Issue 11b: changing the default in settings offers to apply to all --- */
     const promptFlow = await p4.evaluate(async () => {
@@ -1398,9 +1577,10 @@ try {
             limit: limit
         };
     });
-    check('engine stress: 60 records span several pages', bulk.pages > 1, bulk.pages);
-    check('engine stress: every record survives pagination (60 in, 60 out)',
-        bulk.sum === 60, 'sum=' + bulk.sum + ' pages=' + bulk.pages + ' perPage=[' + bulk.per.join(',') + ']');
+    check('engine stress: many records span several pages', bulk.pages > 1, bulk.pages);
+    check('engine stress: every record survives pagination',
+        bulk.sum === bulk.totalRecords,
+        'in=' + bulk.totalRecords + ' out=' + bulk.sum + ' pages=' + bulk.pages + ' perPage=[' + bulk.per.join(',') + ']');
     check('engine stress: no empty middle page', bulk.emptyPages === 0, bulk.emptyPages);
     check('engine stress: page content stays inside the page',
         bulk.maxBody <= bulk.limit + 2, bulk.maxBody + ' <= ' + bulk.limit);
@@ -1416,6 +1596,7 @@ try {
         sizeSel.dispatchEvent(new Event('change', { bubbles: true }));
         await new Promise(r => setTimeout(r, 400));
         const before = document.querySelectorAll('#dashboardTableBody tr').length;
+        const ruleBefore = !!document.getElementById('printLayoutPageRule');
 
         document.getElementById('btnDashPrint').click();
         await new Promise(r => setTimeout(r, 700));
@@ -1425,22 +1606,37 @@ try {
             pages++;
             rows += p.querySelectorAll('tbody tr').length;
         });
+        const ruleDuring = !!document.getElementById('printLayoutPageRule');
 
         await new Promise(r => setTimeout(r, 2600));
         const after = document.querySelectorAll('#dashboardTableBody tr').length;
         const sizeAfter = document.getElementById('pageSize').value;
+        const ruleAfter = !!document.getElementById('printLayoutPageRule');
 
         window.print = prevPrint;
         App.PrintLayout.cleanup();
-        return { before, rows, pages, after, sizeAfter, printCalls: calls };
+        return {
+            before, rows, pages, after, sizeAfter, printCalls: calls,
+            ruleBefore, ruleDuring, ruleAfter,
+            hasPrintNow: typeof App.Dashboard.printNow === 'function',
+            hasPrintCurrentView: typeof App.App.printCurrentView === 'function',
+            expected: App.Store.get.leaves().length
+        };
     });
     check('export: live table is paginated at 50 before printing', autoAll.before === 50, autoAll.before);
-    check('export: printing covers ALL 60 records, not just the visible page',
-        autoAll.rows === 60, 'printed=' + autoAll.rows + ' pages=' + autoAll.pages);
+    check('export: printing covers ALL records, not just the visible page',
+        autoAll.rows === autoAll.expected,
+        'printed=' + autoAll.rows + ' expected=' + autoAll.expected + ' pages=' + autoAll.pages);
     check('export: printing happened exactly once', autoAll.printCalls === 1, autoAll.printCalls);
     check('export: on-screen pagination restored afterwards',
         autoAll.after === 50 && autoAll.sizeAfter === '50',
         'rows=' + autoAll.after + ' size=' + autoAll.sizeAfter);
+    /* قاعدة @page الصفرية تُحقن وقت الطباعة المولّدة فقط، فلا تُفسد Ctrl+P */
+    check('print: zero-margin @page rule injected only while printing',
+        autoAll.ruleBefore === false && autoAll.ruleDuring === true && autoAll.ruleAfter === false,
+        'before=' + autoAll.ruleBefore + ' during=' + autoAll.ruleDuring + ' after=' + autoAll.ruleAfter);
+    check('print: Ctrl+P is routed to the generated print path',
+        autoAll.hasPrintNow === true && autoAll.hasPrintCurrentView === true);
 
     check('issues: no console/page errors during acceptance tests',
         reqErrors.length === 0, reqErrors.slice(0, 3).join(' || '));

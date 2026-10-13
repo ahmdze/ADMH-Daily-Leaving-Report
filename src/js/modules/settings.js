@@ -63,8 +63,7 @@ App.Settings = (function () {
             setMinistry: s.ministry, setDirectorate: s.directorate,
             setHospital: s.hospital, setDepartmentUnit: s.departmentUnit,
             setFooterHR: s.footerHR, setFooterManager: s.footerManager,
-            setOperatorName: s.operatorName, setRptTitle: s.rptTitle,
-            setPrintFooterText: s.printFooterText
+            setOperatorName: s.operatorName, setRptTitle: s.rptTitle
         };
         Object.keys(fields).forEach(id => {
             const el = $(id);
@@ -96,7 +95,8 @@ App.Settings = (function () {
         s.footerManager = read('setFooterManager');
         s.operatorName = read('setOperatorName') || 'موظف الإجازات';
         s.rptTitle = read('setRptTitle') || 'موقف الإجازات اليومي للموظفين';
-        s.printFooterText = read('setPrintFooterText', 400) || C.DEFAULT_SETTINGS.printFooterText;
+        /* نص التذييل صلب في الكود — انظر App.Constants.DEFAULT_SETTINGS.printFooterText */
+        s.printFooterText = C.DEFAULT_SETTINGS.printFooterText;
 
         Store.save([C.KEYS.SETTINGS]);
         App.Audit.log({ action: 'update', entity: 'settings', label: 'تحديث بيانات الترويسة', before: before, after: s });

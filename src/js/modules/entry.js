@@ -60,18 +60,18 @@ App.Entry = (function () {
 
     function isDirty() { return signature() !== baseline; }
 
-    /* ---------------- القوائم ---------------- */
+    /* ---------------- القوائم ----------------
+       القسم والشعبة أصبحا حقلي كتابة مع قائمة اقتراحات (datalist)،
+       فيمكن للكاتب أن يختار من القائمة أو يكتب قيمة جديدة. */
 
+    /**
+     * يعيد بناء قائمة اقتراحات الشعب حسب القسم المكتوب.
+     * لا يمسّ قيمة #entrySection إطلاقاً — عمداً — حتى لا تُمحى
+     * الشعبة التي كتبها المستخدم عند أي تحديث للقائمة.
+     */
     function populateSections() {
-        const deptName = val('entryDept');
-        const sel = $('entrySection');
-        if (!sel) return;
-
-        const secs = App.Org.sectionsOf(deptName);
-        const cur = sel.value;
-        sel.innerHTML = '<option value="">بدون شعبة</option>' +
-            secs.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
-        sel.value = secs.some(s => s.name === cur) ? cur : '';
+        if (!App.Org || !App.Org.populateSectionDatalist) return;
+        App.Org.populateSectionDatalist(val('entryDept'));
     }
 
     /** يعرض حقول الأيام أو حقول الساعات حسب نوع الإجازة */
@@ -264,9 +264,10 @@ App.Entry = (function () {
         if (!p) return;
         setVal('entryEmpName', p.name);
         setVal('entryJobTitle', p.jobTitle || '');
+        /* القسم أولاً، ثم تحديث قوائم الاقتراحات، ثم الشعبة */
         setVal('entryDept', p.dept || '');
         populateSections();
-        if (p.section) setVal('entrySection', p.section);
+        setVal('entrySection', p.section || '');
         hideSuggestions();
         markDirty();
     }
@@ -310,8 +311,8 @@ App.Entry = (function () {
         const editId = val('entryEditId');
         const empName = App.Security.clean(val('entryEmpName'), 150);
         const jobTitle = App.Security.clean(val('entryJobTitle'), 150);
-        const dept = App.Security.clean(val('entryDept'), 120);
-        const section = App.Security.clean(val('entrySection'), 120);
+        let dept = App.Security.clean(val('entryDept'), 120);
+        let section = App.Security.clean(val('entrySection'), 120);
         const typeId = val('entryType');
         const status = val('entryStatus') || Store.get.settings().defaultStatus;
         const notes = App.Security.clean(val('entryNotes'), 500);
@@ -346,6 +347,18 @@ App.Entry = (function () {
                 if (toEl) toEl.focus();
             }
             return;
+        }
+
+        /* ضمان وجود القسم/الشعبة المكتوبين في الدليل، ثم استعمال
+           الاسمين المطبَّعين اللذين يعيدهما المخزن حتى يتطابق
+           السجل مع دليل الأقسام دائماً. */
+        const org = (typeof Store.ensureOrg === 'function') ? Store.ensureOrg(dept, section) : null;
+        if (org && org.dept) {
+            dept = org.dept.name;
+            section = org.section ? org.section.name : '';
+        } else {
+            dept = '';
+            section = '';
         }
 
         /* الموظف في الدليل */
@@ -445,6 +458,7 @@ App.Entry = (function () {
         setVal('entryEmpName', '');
         setVal('entryJobTitle', '');
         setVal('entryDept', '');
+        setVal('entrySection', '');
         setVal('entryStatus', Store.get.settings().defaultStatus || 'approved');
         setVal('entryNotes', '');
 
@@ -545,10 +559,14 @@ App.Entry = (function () {
             typeSel.addEventListener('change', () => { toggleFields(); markDirty(); renderAnalysis(); });
         }
 
-        /* القسم ← الشعب */
-        const deptSel = $('entryDept');
-        if (deptSel) {
-            deptSel.addEventListener('change', () => { populateSections(); renderAnalysis(); });
+        /* القسم ← الشعب
+           «القسم» حقل كتابة، فنحدّث قائمة اقتراحات الشعب عند كل تعديل.
+           عند الكتابة نؤخّر التحديث قليلاً (200 مللي) لتقليل إعادة البناء،
+           وعند تأكيد القيمة (change) نُحدّثه فوراً. */
+        const deptEl = $('entryDept');
+        if (deptEl) {
+            deptEl.addEventListener('input', App.debounce(populateSections, 200));
+            deptEl.addEventListener('change', () => { populateSections(); renderAnalysis(); });
         }
 
         /* التواريخ والأيام */
