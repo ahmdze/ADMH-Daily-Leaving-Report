@@ -87,32 +87,27 @@ body.print-capturing .app-modal-backdrop { z-index: 80; }
     flex: 0 0 auto;
     border-top: 1px solid #94a3b8;
     padding-top: 3px;
-    /* سطر واحد بعرض الصفحة كاملاً، بلا التفاف وبلا اقتطاع:
-       الخط صغير بما يكفي ليدخل النص كاملاً في 733px (794px - 2×8mm). */
     font-size: 5.5pt;
     line-height: 1.25;
     letter-spacing: -0.1px;
     display: block;
     width: 100%;
-    text-align: center;
+    /* تم إزالة text-align: center لتجنب التعارض */
     white-space: nowrap;
     overflow: visible;
 }
 
-/* نص الإسناد: يبدأ من الحافة اليمنى وينتهي عند اليسرى تماماً
-   بمحاذاة الخط الفاصل أعلاه — لذا نستخدم justify مع justify للسطر الأخير
-   (النص سطر واحد، فيحتاج text-align-last ليتمدّد فعلاً).
-   لا text-overflow ولا overflow: hidden هنا إطلاقاً — أي قصّ يعني
-   ضياع حروف أو أرقام، والمطلوب ظهور كل حرف. */
 .print-page-footer .pf-credit {
     display: block;
-    width: 100%;
-    text-align: justify;
-    text-align-last: justify;
-    -moz-text-align-last: justify;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
+    width: 100%;                  
+    margin: 0 auto;              
+    white-space: nowrap;         
+    font-size: 8px;              
+    text-align: center;         
+    text-align-last: center; 
+    direction: rtl;              
+    transform: scaleX(0.95); /* ضغط أفقي لتقليل طول السطر */
+    transform-origin: right center; /* الضغط يبدأ من اليمين */
 }
 
 /* ملاحظة: لا يوجد .pf-pageno بعد الآن — رقم الصفحة انتقل إلى الترويسة

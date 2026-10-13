@@ -113,7 +113,7 @@ App.PrintLayout = (function () {
 
     /**
      * إزالة كل خصائص id من النسخة.
-     * سبب ذلك: النسخة تحتوي عناصر مثل dashboardTable و dashboardTableBody،
+     * سبب ذلك: النسخة تحتوي عناصر مثل dashboardTable و dashboardTableBody，
      * فتصبح الهويات مكررة في المستند وتُفسد getElementById على الواجهة
      * الحيّة. لا نحتاج أي id داخل الصفحات المولّدة.
      */
