@@ -1,0 +1,59 @@
+{
+  "name": "adhm-leaves",
+  "productName": "ADMH-Leaves",
+  "version": "1.0.0",
+  "private": true,
+  "description": "نظام موقف الإجازات اليومية للمؤسسات الصحية العراقية — تطبيق سطح مكتب يعمل بدون إنترنت",
+  "author": "احمد زياد رحيمه",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "iq.moh.adhm.leaves",
+    "productName": "ADMH-Leaves",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "!**/*.md",
+      "!tools/**",
+      "!dist/**",
+      "!_screenshots/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "نظام موقف الإجازات اليومية",
+      "include": "build/installer.nsh",
+      "artifactName": "ADMH-Leaves-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "ar_SA"
+      ]
+    }
+  }
+}

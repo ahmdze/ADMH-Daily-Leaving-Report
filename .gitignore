@@ -4,11 +4,17 @@ tools/node_modules/
 package-lock.json
 tools/package-lock.json
 
+# مخرجات البناء (electron-builder) — لا تُرفع إلى Git
+dist/
+release/
+
 # نسخ ومخرجات مؤقتة
 _backup/
 _screenshots/
 _downloads/
 _downloads_req/
+_selftest.json
+_electron-selftest.json
 _smoke*
 _diag*
 _diag-*.json
