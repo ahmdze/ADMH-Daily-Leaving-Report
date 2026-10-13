@@ -861,11 +861,11 @@
                         <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">حالة التخزين</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                             <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                                <p class="text-slate-500 font-bold text-[11px] mb-1">التخزين المحلي (IndexedDB)</p>
+                                <p class="text-slate-500 font-bold text-[11px] mb-1" id="storageLocalLabel">التخزين المحلي (IndexedDB)</p>
                                 <p id="storageLocalStatus" class="font-bold text-slate-800">—</p>
                             </div>
                             <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                                <p class="text-slate-500 font-bold text-[11px] mb-1">مجلد البيانات على القرص</p>
+                                <p class="text-slate-500 font-bold text-[11px] mb-1" id="storageFolderLabel">مجلد البيانات على القرص</p>
                                 <p id="storageFolderStatus" class="font-bold text-slate-800">غير مرتبط</p>
                             </div>
                         </div>
@@ -874,9 +874,13 @@
                             <button type="button" id="btnConnectFolder" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> اختيار مجلد البيانات</button>
                             <button type="button" id="btnReconnectFolder" class="hidden bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-link"></i> إعادة تفعيل الاتصال</button>
                             <button type="button" id="btnDisconnectFolder" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-link-slash"></i> فصل المجلد</button>
+                            <!-- أزرار نسخة سطح المكتب (.exe) -->
+                            <button type="button" id="btnChooseBackupFolder" class="hidden bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-folder-tree"></i> تغيير مجلد النسخ الاحتياطي</button>
+                            <button type="button" id="btnOpenDataFolder" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> فتح مجلد البيانات</button>
+                            <button type="button" id="btnOpenBackupFolder" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-box-archive"></i> فتح مجلد النسخ</button>
                             <button type="button" id="btnBackupNow" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> نسخة احتياطية الآن</button>
                         </div>
-                        <p class="text-[10px] text-slate-500">
+                        <p class="text-[10px] text-slate-500" id="storageHint">
                             في Chrome و Edge يمكن ربط مجلد على القرص فتُحفظ البيانات فيه تلقائياً مع نسخ احتياطية دوّارة.
                             في Firefox لا يدعم المتصفح ذلك، لذا تُحفظ البيانات محلياً ويُنصح بالتصدير الدوري.
                         </p>
@@ -999,6 +1003,8 @@
     <script src="src/js/core/dateUtils.js"></script>
     <script src="src/js/core/idb.js"></script>
     <script src="src/js/core/fsa.js"></script>
+    <!-- جسر Electron: يُسجّل App.Electron ويصبح غير فعّال داخل المتصفح -->
+    <script src="src/js/core/electron.js"></script>
     <script src="src/js/core/store.js"></script>
     <script src="src/js/core/audit.js"></script>
 

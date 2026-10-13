@@ -49,6 +49,8 @@ App.Store = (function () {
     let backend = 'memory';
     let ready = false;
     let folderName = '';
+    let dataPath = '';       /* مسار مجلد البيانات داخل Electron */
+    let backupPath = '';     /* مسار مجلد النسخ الاحتياطي داخل Electron */
 
     /* ---------------- أدوات ---------------- */
     function nowIso() { return new Date().toISOString(); }
@@ -296,11 +298,96 @@ App.Store = (function () {
     /* ============================================================
        التهيئة
        ============================================================ */
+    /* ============================================================
+       واجهة Electron (تطبيق .exe)
+       عند التشغيل داخل Electron يكون ملف البيانات على القرص هو المصدر
+       الرسمي، وتُتجاوز IndexedDB و File System Access تماماً.
+       ============================================================ */
+    function electronBridge() {
+        try {
+            const e = window.App && App.Electron;
+            return (e && e.available && e.available()) ? e : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    /**
+     * يطبّق بيانات معالج التنصيب على الإعدادات — مرة واحدة فقط لكل تنصيب.
+     * الجسر يُرجع الكائن مرة واحدة ثم يعيد null.
+     */
+    async function applyInstallConfig() {
+        const el = electronBridge();
+        if (!el) return false;
+
+        let cfg = null;
+        try { cfg = await el.takeInstallConfig(); } catch (e) { cfg = null; }
+        if (!cfg || typeof cfg !== 'object') return false;
+
+        const s = state.settings || (state.settings = {});
+        const textFields = ['ministry', 'directorate', 'hospital', 'departmentUnit',
+            'footerHR', 'footerManager', 'operatorName'];
+        let applied = 0;
+        textFields.forEach(function (k) {
+            const v = App.Security.clean(cfg[k], 200);
+            if (v) { s[k] = v; applied++; }
+        });
+
+        const bal = parseInt(cfg.defaultAnnualBalance, 10);
+        if (!isNaN(bal) && bal >= 0 && bal <= 365) {
+            s.defaultAnnualBalance = bal;
+            applied++;
+        }
+
+        const backup = App.Security.clean(cfg.backupFolder, 400);
+        if (backup) {
+            try { await el.setBackupFolder(backup); } catch (e) { /* تجاهل */ }
+            s.backupFolder = backup;
+            applied++;
+        }
+
+        state.meta = state.meta || {};
+        state.meta.installConfigApplied = true;
+        state.meta.installConfigAt = new Date().toISOString();
+
+        if (applied) {
+            App.Audit.log({
+                action: 'system', entity: 'settings',
+                label: 'تطبيق إعدادات معالج التنصيب (' + applied + ' حقلاً)'
+            });
+        }
+        return applied > 0;
+    }
+
     async function init() {
         let loaded = false;
+        const el = electronBridge();
 
-        /* 1) IndexedDB */
-        if (IDB.supported()) {
+        /* 0) داخل Electron: ملفات على القرص هي المصدر الرسمي */
+        if (el) {
+            try {
+                const docs = await el.readAll();
+                if (docs) {
+                    C.ALL_KEYS.forEach(function (key) {
+                        if (docs[key] !== undefined && docs[key] !== null) state[key] = docs[key];
+                    });
+                    loaded = true;
+                }
+                backend = 'electron';
+                connected = true;
+                try {
+                    const p = await el.paths();
+                    folderName = (p && p.data) || '';
+                    dataPath = folderName;
+                    backupPath = (p && p.backups) || '';
+                } catch (e) { /* تجاهل */ }
+            } catch (e) {
+                console.warn('[Store] تعذّر القراءة من Electron:', e);
+            }
+        }
+
+        /* 1) IndexedDB — لمسار المتصفح فقط */
+        if (!loaded && !el && IDB.supported()) {
             try {
                 const meta = await IDB.get(C.KEYS.META);
                 if (meta) {
@@ -323,16 +410,16 @@ App.Store = (function () {
                 const migrated = fromBackupObject(legacy);
                 Object.assign(state, migrated);
                 loaded = true;
-                backend = IDB.supported() ? 'idb' : 'localstorage';
+                backend = el ? 'electron' : (IDB.supported() ? 'idb' : 'localstorage');
                 await persistAllNow();
                 emit('migrated', { source: 'localStorage' });
             }
         }
 
-        /* 3) بيانات افتراضية عند أول تشغيل */
+        /* 3) بيانات افتراضية عند أول تشغيل — بلا موظفين ولا حركات */
         if (!loaded) {
             Object.assign(state, freshState());
-            backend = IDB.supported() ? 'idb' : 'localstorage';
+            backend = el ? 'electron' : (IDB.supported() ? 'idb' : 'localstorage');
             await persistAllNow();
         }
 
@@ -340,8 +427,18 @@ App.Store = (function () {
         ensureShape();
         backfillLeaveTypeIds();
 
-        /* 5) استعادة مقبض المجلد إن كان محفوظاً */
-        if (IDB.supported() && FSA.supported()) {
+        /* 4.1) إعدادات معالج التنصيب (مرة واحدة لكل تنصيب) */
+        if (el && !state.meta.installConfigApplied) {
+            const changed = await applyInstallConfig();
+            if (changed) {
+                ensureShape();
+                await persistAllNow();
+                emit('installConfig', { settings: state.settings });
+            }
+        }
+
+        /* 5) استعادة مقبض المجلد إن كان محفوظاً (مسار المتصفح فقط) */
+        if (!el && IDB.supported() && FSA.supported()) {
             try {
                 const handle = await IDB.get(HANDLE_KEY);
                 if (handle) {
@@ -409,6 +506,21 @@ App.Store = (function () {
     /** حفظ فوري لكل الوثائق (يُستخدم عند التهيئة والترحيل) */
     async function persistAllNow() {
         state.meta.updatedAt = nowIso();
+
+        /* داخل Electron: الكتابة إلى ملفات القرص مباشرة */
+        const el = electronBridge();
+        if (el) {
+            try {
+                const docs = {};
+                C.ALL_KEYS.forEach(function (k) { docs[k] = state[k]; });
+                await el.writeAll(docs);
+            } catch (e) {
+                console.warn('[Store] فشل حفظ ملفات Electron:', e);
+                emit('fileError', { key: '*', error: e });
+            }
+            return;
+        }
+
         if (IDB.supported()) {
             for (const key of C.ALL_KEYS) {
                 try { await IDB.set(key, state[key]); } catch (e) { console.warn('[Store] فشل حفظ', key, e); }
@@ -440,6 +552,28 @@ App.Store = (function () {
         const list = Array.isArray(keys) ? keys : (keys ? [keys] : C.ALL_KEYS.slice());
         state.meta.updatedAt = nowIso();
 
+        /* داخل Electron: كتابة مؤجلة إلى ملفات القرص عبر IPC */
+        const el = electronBridge();
+        if (el) {
+            list.forEach(function (k) {
+                clearTimeout(writeTimers[k]);
+                writeTimers[k] = setTimeout(function () {
+                    el.writeDoc(k, state[k]).catch(function (e) {
+                        console.warn('[Store] فشل كتابة الملف', k, e);
+                        emit('fileError', { key: k, error: e });
+                    });
+                }, 350);
+            });
+            /* الميتا تُكتب معها حتى تبقى تواريخ النسخ والمجلد محدّثة */
+            clearTimeout(writeTimers[C.KEYS.META]);
+            writeTimers[C.KEYS.META] = setTimeout(function () {
+                el.writeDoc(C.KEYS.META, state.meta).catch(function () { });
+            }, 350);
+
+            emit('change', { keys: list });
+            return Promise.resolve(true);
+        }
+
         /* IndexedDB فوري */
         if (IDB.supported()) {
             list.forEach(k => {
@@ -469,6 +603,21 @@ App.Store = (function () {
 
     /** كتابة فورية بلا تأخير — تُستدعى قبل إغلاق الصفحة */
     async function flush() {
+        const el = electronBridge();
+        if (el) {
+            Object.keys(writeTimers).forEach(k => clearTimeout(writeTimers[k]));
+            Object.keys(writeTimers).forEach(k => delete writeTimers[k]);
+            try {
+                const docs = {};
+                C.ALL_KEYS.forEach(function (k) { docs[k] = state[k]; });
+                await el.writeAll(docs);
+                return true;
+            } catch (e) {
+                console.warn('[Store] فشل الحفظ النهائي على القرص:', e);
+                return false;
+            }
+        }
+
         if (!connected || !dirHandle) return true;
         Object.keys(writeTimers).forEach(k => clearTimeout(writeTimers[k]));
         Object.keys(writeTimers).forEach(k => delete writeTimers[k]);
@@ -649,6 +798,22 @@ App.Store = (function () {
        ============================================================ */
 
     async function writeBackup(reason) {
+        const el = electronBridge();
+        if (el) {
+            try {
+                const name = await el.writeBackup(exportObject());
+                if (!name) return null;   /* مجلد النسخ غير متاح — لا نُسقط التطبيق */
+                state.meta.lastBackupDate = App.Dates.todayISO();
+                state.meta.lastBackupFile = name;
+                save([C.KEYS.META]);
+                emit('backup', { file: name, reason: reason || '' });
+                return name;
+            } catch (e) {
+                console.warn('[Store] فشل النسخ الاحتياطي على القرص:', e);
+                return null;
+            }
+        }
+
         if (!connected || !dirHandle) return null;
         const sub = await FSA.getSubDir(dirHandle, 'backups', true);
         const stamp = new Date();
@@ -680,6 +845,16 @@ App.Store = (function () {
     }
 
     async function listBackups() {
+        const el = electronBridge();
+        if (el) {
+            try {
+                const files = await el.listBackups();
+                return (files || []).filter(isSnapshotName).sort().reverse();
+            } catch (e) {
+                return [];
+            }
+        }
+
         if (!connected || !dirHandle) return [];
         try {
             const sub = await FSA.getSubDir(dirHandle, 'backups', false);
@@ -691,6 +866,16 @@ App.Store = (function () {
     }
 
     async function restoreBackup(fileName) {
+        const el = electronBridge();
+        if (el) {
+            const data = await el.readBackup(fileName);
+            if (!data) throw new Error('تعذّر قراءة ملف النسخة الاحتياطية');
+            applyImported(data);
+            await persistAllNow();
+            emit('imported', { source: 'backup', file: fileName });
+            return true;
+        }
+
         if (!connected || !dirHandle) throw new Error('لا يوجد مجلد مرتبط');
         const sub = await FSA.getSubDir(dirHandle, 'backups', false);
         const data = await FSA.readJSON(sub, fileName);
@@ -703,7 +888,8 @@ App.Store = (function () {
 
     /** نسخة احتياطية تلقائية مرة واحدة يومياً */
     async function autoBackupIfNeeded() {
-        if (!connected || !dirHandle) return null;
+        const el = electronBridge();
+        if (!el && (!connected || !dirHandle)) return null;
         const today = App.Dates.todayISO();
         if (state.meta.lastBackupDate === today) return null;
         try {
@@ -771,8 +957,11 @@ App.Store = (function () {
         } catch (e) { /* تجاهل */ }
 
         dirHandle = null;
-        connected = false;
-        folderName = '';
+        /* داخل Electron يبقى الاتصال بمجلد البيانات قائماً بعد التصفير */
+        if (!electronBridge()) {
+            connected = false;
+            folderName = '';
+        }
 
         const fresh = freshState();
         Object.keys(state).forEach(k => { delete state[k]; });
@@ -959,6 +1148,37 @@ App.Store = (function () {
         folderName: () => folderName,
         hasPendingFolder: () => !!(dirHandle && !connected),
         pendingFolderName: () => folderName,
+
+        /* بيئة Electron (تطبيق .exe) */
+        isElectron: () => !!electronBridge(),
+        dataPath: () => dataPath,
+        backupPath: () => backupPath,
+        setBackupFolder: async function (dir) {
+            const el = electronBridge();
+            if (!el) return false;
+            const ok = await el.setBackupFolder(dir).catch(() => false);
+            if (ok) {
+                backupPath = dir;
+                state.settings.backupFolder = dir;
+                save([C.KEYS.SETTINGS]);
+            }
+            return !!ok;
+        },
+        chooseBackupFolder: async function () {
+            const el = electronBridge();
+            if (!el) return null;
+            const dir = await el.chooseBackupFolder().catch(() => null);
+            if (!dir) return null;
+            backupPath = dir;
+            state.settings.backupFolder = dir;
+            save([C.KEYS.SETTINGS]);
+            return dir;
+        },
+        openFolder: function (which) {
+            const el = electronBridge();
+            if (!el) return Promise.resolve(false);
+            return el.openFolder(which).catch(function () { return false; });
+        },
 
         /* حفظ */
         save: save,

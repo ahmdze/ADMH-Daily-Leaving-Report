@@ -270,9 +270,20 @@ App.Settings = (function () {
     /* ---------------- التخزين ---------------- */
 
     function renderStorage() {
+        const isEl = !!(Store.isElectron && Store.isElectron());
+
+        const localLabel = $('storageLocalLabel');
+        const folderLabel = $('storageFolderLabel');
+        const hint = $('storageHint');
+
         const localEl = $('storageLocalStatus');
         if (localEl) {
-            if (App.IDB.supported()) {
+            if (isEl) {
+                if (localLabel) localLabel.textContent = 'مجلد البيانات على القرص';
+                localEl.textContent = Store.dataPath() || '—';
+                localEl.className = 'font-bold text-emerald-700 break-all';
+            } else if (App.IDB.supported()) {
+                if (localLabel) localLabel.textContent = 'التخزين المحلي (IndexedDB)';
                 const n = Store.get.leaves().length;
                 localEl.textContent = 'فعّال — ' + App.num(n) + ' سجل إجازة محفوظ في المتصفح';
                 localEl.className = 'font-bold text-emerald-700';
@@ -285,7 +296,12 @@ App.Settings = (function () {
         const folderEl = $('storageFolderStatus');
         const connected = Store.isConnected();
         if (folderEl) {
-            if (connected) {
+            if (isEl) {
+                if (folderLabel) folderLabel.textContent = 'مجلد النسخ الاحتياطي';
+                folderEl.textContent = Store.backupPath() || '—';
+                folderEl.className = 'font-bold text-emerald-700 break-all';
+            } else if (connected) {
+                if (folderLabel) folderLabel.textContent = 'مجلد البيانات على القرص';
                 folderEl.textContent = 'مرتبط: ' + (Store.folderName() || 'مجلد البيانات') + ' — الحفظ تلقائي';
                 folderEl.className = 'font-bold text-emerald-700';
             } else if (Store.hasPendingFolder()) {
@@ -300,12 +316,27 @@ App.Settings = (function () {
             }
         }
 
+        if (hint) {
+            hint.textContent = isEl
+                ? 'تعمل النسخة المثبّتة على ملفات حقيقية على القرص، وتُنشأ نسخة احتياطية مرة يومياً تلقائياً في مجلد النسخ المحدَّد عند التنصيب، ويمكن تغييره من الزر أعلاه.'
+                : hint.textContent;
+        }
+
+        /* أزرار مسار المتصفح */
         const connectBtn = $('btnConnectFolder');
-        if (connectBtn) connectBtn.classList.toggle('hidden', connected || !App.FSA.supported());
+        if (connectBtn) connectBtn.classList.toggle('hidden', isEl || connected || !App.FSA.supported());
         const reconnectBtn = $('btnReconnectFolder');
-        if (reconnectBtn) reconnectBtn.classList.toggle('hidden', !Store.hasPendingFolder() || connected);
+        if (reconnectBtn) reconnectBtn.classList.toggle('hidden', isEl || !Store.hasPendingFolder() || connected);
         const disconnectBtn = $('btnDisconnectFolder');
-        if (disconnectBtn) disconnectBtn.classList.toggle('hidden', !connected);
+        if (disconnectBtn) disconnectBtn.classList.toggle('hidden', isEl || !connected);
+
+        /* أزرار نسخة سطح المكتب (.exe) */
+        const pickBackup = $('btnChooseBackupFolder');
+        if (pickBackup) pickBackup.classList.toggle('hidden', !isEl);
+        const openData = $('btnOpenDataFolder');
+        if (openData) openData.classList.toggle('hidden', !isEl);
+        const openBackup = $('btnOpenBackupFolder');
+        if (openBackup) openBackup.classList.toggle('hidden', !isEl);
     }
 
     async function connectFolder() {
@@ -646,6 +677,21 @@ App.Settings = (function () {
         bind('btnReconnectFolder', 'click', reconnectFolder);
         bind('btnDisconnectFolder', 'click', disconnectFolder);
         bind('btnBackupNow', 'click', backupNow);
+
+        /* أزرار نسخة سطح المكتب (.exe) */
+        bind('btnChooseBackupFolder', 'click', async () => {
+            try {
+                const dir = await Store.chooseBackupFolder();
+                if (!dir) return;
+                renderStorage();
+                App.Notify.toast('تم تغيير مجلد النسخ الاحتياطي', 'success');
+                loadBackups();
+            } catch (e) {
+                App.Notify.alert('تعذّر تغيير المجلد: ' + (e && e.message ? e.message : 'خطأ'), 'error');
+            }
+        });
+        bind('btnOpenDataFolder', 'click', () => Store.openFolder('data'));
+        bind('btnOpenBackupFolder', 'click', () => Store.openFolder('backups'));
         bind('btnRefreshBackups', 'click', loadBackups);
         bind('btnExportJson', 'click', exportJson);
         bind('btnImportJson', 'click', () => { const i = $('importJsonInput'); if (i) i.click(); });
