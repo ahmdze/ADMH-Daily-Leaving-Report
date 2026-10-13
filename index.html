@@ -1,1570 +1,999 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام موقف الإجازات اليومية - النسخة الشاملة المحدثة</title>
+    <title>نظام موقف الإجازات اليومية — النسخة المؤسسية 2.0</title>
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- أيقونة مدمجة (لا تحتاج ملفاً خارجياً ولا إنترنت) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230c4a6e'/%3E%3Crect%20x='8'%20y='11'%20width='16'%20height='12'%20rx='2'%20fill='none'%20stroke='%2338bdf8'%20stroke-width='2.2'/%3E%3Cpath%20d='M11%208v3M21%208v3'%20stroke='%2338bdf8'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3Cpath%20d='M12.5%2017.5l2.5%202.5%204.5-5'%20stroke='%2338bdf8'%20stroke-width='2.2'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+
+    <!-- الخطوط المحلية (تعمل بدون إنترنت) -->
+    <link rel="stylesheet" href="assets/css/fonts.css">
+    <!-- الأيقونات المحلية -->
+    <link rel="stylesheet" href="assets/css/fontawesome.min.css">
+    <!-- Tailwind محلي -->
+    <script src="assets/js/tailwind.js"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            500: '#0284c7',
-                            600: '#0369a1',
-                            700: '#075985',
-                            800: '#074e74',
-                            900: '#0c4a6e',
+        if (window.tailwind) {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            brand: {
+                                50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd',
+                                300: '#7dd3fc', 400: '#38bdf8', 500: '#0284c7',
+                                600: '#0369a1', 700: '#075985', 800: '#074e74',
+                                900: '#0c4a6e', 950: '#082f49'
+                            }
+                        },
+                        fontFamily: {
+                            cairo: ['Cairo', 'sans-serif'],
+                            tajawal: ['Tajawal', 'sans-serif']
                         }
-                    },
-                    fontFamily: {
-                        cairo: ['Cairo', 'sans-serif'],
-                        tajawal: ['Tajawal', 'sans-serif']
                     }
                 }
-            }
+            };
         }
     </script>
-
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-
-    <!-- External JS Libraries for Excel Export and Direct PDF Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-    <style>
-        body {
-            font-family: 'Cairo', 'Tajawal', sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-        }
-
-        /* Custom Scrollbars */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        /* Strict Single Line Footer Font Size 6pt */
-        .fixed-footer-line {
-            white-space: nowrap !important;
-            font-size: 6pt !important;
-            letter-spacing: -0.2px !important;
-            display: block !important;
-            width: 100% !important;
-            text-align: center !important;
-            line-height: 1.2 !important;
-        }
-
-        /* Single line report title */
-        .single-line-title {
-            white-space: nowrap !important;
-        }
-
-        /* Print Specific Styles */
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: white !important;
-                color: black !important;
-                font-size: 9.5pt;
-                counter-reset: page;
-            }
-
-            .print-container {
-                box-shadow: none !important;
-                border: none !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                width: 100% !important;
-            }
-
-            .print-table {
-                border-collapse: collapse !important;
-                width: 100% !important;
-            }
-
-            .print-table th, .print-table td {
-                border: 1px solid #000 !important;
-                padding: 5px 6px !important;
-                color: #000 !important;
-            }
-
-            .print-table th {
-                background-color: #f1f5f9 !important;
-                font-weight: bold !important;
-            }
-
-            .page-number-display::after {
-                content: " (الصفحة " counter(page) " من " counter(pages) ")";
-            }
-
-            @page {
-                size: A4 portrait;
-                margin: 0.8cm;
-            }
-        }
-
-        .tab-btn.active {
-            border-bottom: 3px solid #0284c7;
-            color: #0284c7;
-            font-weight: 700;
-            background-color: #f0f9ff;
-        }
-    </style>
+    <!-- أنماط النظام والطباعة -->
+    <link rel="stylesheet" href="src/css/app.css">
 </head>
-<body class="min-h-screen flex flex-col justify-between">
 
-    <div>
-        <header class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-900 text-white shadow-lg no-print sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-                
-                <!-- Logo & System Main Title -->
-                <div class="flex items-center gap-3">
-                    <div id="navLogoContainer" class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 p-1 overflow-hidden shadow-inner">
-                        <i class="fa-solid fa-hospital text-2xl text-cyan-300" id="navLogoDefault"></i>
-                        <img id="navLogoImg" src="" class="max-h-full max-w-full object-contain hidden" alt="الشعار">
-                    </div>
-                    <div>
-                        <h1 class="font-extrabold text-lg md:text-xl tracking-tight leading-tight flex items-center gap-2">
-                            <span>نظام موقف الإجازات اليومية</span>
-                            <span class="bg-cyan-500/30 text-cyan-200 text-xs px-2 py-0.5 rounded-full border border-cyan-400/30 font-normal">إصدار التصدير المباشر</span>
-                        </h1>
-                        <p class="text-xs text-brand-100 flex items-center gap-2 mt-0.5">
-                            <span id="navHospitalName">المستشفى العام</span> - <span id="navDeptName">شعبة الموارد البشرية</span>
-                        </p>
-                    </div>
+<body class="min-h-screen flex flex-col bg-slate-100">
+
+    <!-- ==================== الترويسة والتنقل ==================== -->
+    <header class="bg-gradient-to-r from-brand-950 via-brand-900 to-brand-950 text-white shadow-lg no-print sticky top-0 z-40">
+        <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 p-1 overflow-hidden">
+                    <i class="fa-solid fa-hospital text-xl text-cyan-300" id="navLogoDefault"></i>
+                    <img id="navLogoImg" src="" class="max-h-full max-w-full object-contain hidden" alt="الشعار">
                 </div>
-
-                <!-- Navigation Bar Tabs -->
-                <nav class="flex items-center gap-1 bg-brand-950/40 p-1.5 rounded-xl border border-white/10 text-sm">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active px-4 py-2 rounded-lg text-slate-200 hover:text-white transition flex items-center gap-2">
-                        <i class="fa-solid fa-table-list text-cyan-400"></i>
-                        <span>الموقف اليومي</span>
-                    </button>
-                    <button onclick="switchTab('entry')" id="tab-entry" class="tab-btn px-4 py-2 rounded-lg text-slate-200 hover:text-white transition flex items-center gap-2">
-                        <i class="fa-solid fa-user-plus text-emerald-400"></i>
-                        <span>إدخال إجازة</span>
-                    </button>
-                    <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-4 py-2 rounded-lg text-slate-200 hover:text-white transition flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-amber-400"></i>
-                        <span>الإعدادات العامة</span>
-                    </button>
-                </nav>
-
+                <div>
+                    <h1 class="font-extrabold text-base md:text-lg tracking-tight leading-tight">
+                        نظام موقف الإجازات اليومية
+                    </h1>
+                    <p class="text-[11px] text-brand-100 mt-0.5">
+                        <span id="navHospitalName">المستشفى</span> — <span id="navDeptName">شعبة الموارد البشرية</span>
+                    </p>
+                </div>
             </div>
-        </header>
 
-        <main class="max-w-7xl mx-auto px-4 py-6 w-full">
+            <nav class="flex items-center gap-1 bg-black/25 p-1.5 rounded-xl border border-white/10 text-[13px] flex-wrap">
+                <button type="button" data-app-tab="dashboard" class="tab-btn active px-3 py-2 rounded-lg text-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-table-list text-cyan-400"></i><span>الموقف اليومي</span>
+                </button>
+                <button type="button" data-app-tab="entry" class="tab-btn px-3 py-2 rounded-lg text-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus text-emerald-400"></i><span>إدخال إجازة</span>
+                </button>
+                <button type="button" data-app-tab="reports" class="tab-btn px-3 py-2 rounded-lg text-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-lines text-sky-300"></i><span>التقارير</span>
+                </button>
+                <button type="button" data-app-tab="analytics" class="tab-btn px-3 py-2 rounded-lg text-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie text-fuchsia-300"></i><span>الإحصائيات</span>
+                </button>
+                <button type="button" data-app-tab="settings" class="tab-btn px-3 py-2 rounded-lg text-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-amber-400"></i><span>الإعدادات</span>
+                </button>
+            </nav>
+        </div>
+    </header>
 
-            <!-- TAB 1: DAILY DASHBOARD & PRINTABLE REPORT -->
-            <div id="view-dashboard" class="tab-view space-y-6">
-                
-                <!-- Filter and Action Controls Bar -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 no-print flex flex-wrap gap-3 justify-between items-center">
-                    
-                    <div class="flex flex-wrap items-center gap-2 flex-grow">
-                        <!-- Date Selector -->
+    <!-- ==================== شريط حالة التخزين ==================== -->
+    <div id="storageBanner" class="no-print hidden">
+        <div class="max-w-[1600px] mx-auto px-4 pt-3">
+            <div id="storageBannerInner" class="rounded-xl px-4 py-2.5 text-xs font-semibold flex flex-wrap items-center gap-2 justify-between">
+                <span id="storageBannerText" class="flex items-center gap-2"></span>
+                <span id="storageBannerActions" class="flex items-center gap-2"></span>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-[1600px] mx-auto px-4 py-5 w-full flex-1">
+
+        <!-- ============================================================
+             التبويب 1: الموقف اليومي
+             ============================================================ -->
+        <div id="view-dashboard" class="tab-view space-y-5">
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 no-print space-y-3">
+                <div class="flex flex-wrap items-center gap-2 justify-between">
+                    <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
                             <i class="fa-solid fa-calendar-day text-brand-600 text-sm"></i>
-                            <span class="text-xs font-bold text-slate-600">تاريخ الموقف:</span>
-                            <input type="date" id="dashboardFilterDate" onchange="onDashboardDateChange()" class="bg-white border text-sm font-semibold text-slate-800 rounded-lg px-2 py-1 focus:ring-2 focus:ring-brand-500 outline-none">
+                            <label for="dashboardFilterDate" class="text-[11px] font-bold text-slate-600 whitespace-nowrap">تاريخ الموقف:</label>
+                            <input type="date" id="dashboardFilterDate" class="bg-white border border-slate-300 text-xs font-semibold text-slate-800 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
-
-                        <!-- Department Filter -->
-                        <select id="filterDept" onchange="renderDashboardTable()" class="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500">
-                            <option value="">جميع الأقسام</option>
+                        <select id="dashPeriodMode" class="bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-700 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="day">موقف يوم واحد</option>
+                            <option value="month">موقف شهر كامل</option>
+                            <option value="range">فترة مخصّصة</option>
+                            <option value="all">كل السجلات</option>
                         </select>
-
-                        <!-- Leave Type Filter -->
-                        <select id="filterLeaveType" onchange="renderDashboardTable()" class="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500">
-                            <option value="">جميع أنواع الإجازات</option>
-                        </select>
-
-                        <!-- Search Input -->
-                        <div class="relative flex-grow min-w-[180px]">
-                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input type="text" id="searchKeyword" oninput="renderDashboardTable()" placeholder="بحث بالاسم أو العنوان الوظيفي..." class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl pr-8 pl-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+                        <div id="dashRangeBox" class="hidden items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                            <span class="text-[11px] font-bold text-slate-600">من</span>
+                            <input type="date" id="dashFromDate" class="bg-white border border-slate-300 text-xs rounded-lg px-2 py-1 outline-none">
+                            <span class="text-[11px] font-bold text-slate-600">إلى</span>
+                            <input type="date" id="dashToDate" class="bg-white border border-slate-300 text-xs rounded-lg px-2 py-1 outline-none">
                         </div>
                     </div>
 
-                    <!-- Action Export Buttons -->
                     <div class="flex items-center gap-2">
-                        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-file-excel text-sm"></i> تصدير Excel
+                        <button type="button" id="btnDashExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-file-excel"></i> Excel
                         </button>
-                        <!-- Direct PDF Export Button -->
-                        <button onclick="exportToPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-file-pdf text-sm"></i> تصدير PDF
+                        <button type="button" id="btnDashPdf" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
                         </button>
-                        <!-- Browser Print Button -->
-                        <button onclick="triggerPrint()" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-print text-sm"></i> طباعة
+                        <button type="button" id="btnDashPrint" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-print"></i> طباعة
                         </button>
                     </div>
                 </div>
 
-                <!-- Statistical Cards Row -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500">إجمالي المجازين اليوم</p>
-                            <h3 class="text-2xl font-black text-slate-800 mt-1" id="statTotal">0</h3>
-                        </div>
-                        <div class="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 font-bold">
-                            <i class="fa-solid fa-users text-lg"></i>
-                        </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="filterDept" class="bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-700 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="">جميع الأقسام</option>
+                    </select>
+                    <select id="filterLeaveType" class="bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-700 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="">جميع أنواع الإجازات</option>
+                    </select>
+                    <select id="filterStatus" class="bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-700 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="">جميع الحالات</option>
+                        <option value="approved">معتمدة</option>
+                        <option value="pending">معلّقة</option>
+                        <option value="rejected">مرفوضة</option>
+                        <option value="cancelled">ملغاة</option>
+                    </select>
+                    <div class="relative flex-grow min-w-[200px]">
+                        <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="searchKeyword" placeholder="بحث بالاسم أو العنوان الوظيفي أو الملاحظات..." class="w-full bg-slate-50 border border-slate-200 text-[11px] rounded-xl pr-8 pl-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
-
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500">إجازات اعتيادية</p>
-                            <h3 class="text-2xl font-black text-sky-600 mt-1" id="statCasual">0</h3>
-                        </div>
-                        <div class="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600 font-bold">
-                            <i class="fa-solid fa-calendar-check text-lg"></i>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500">إجازات زمنية</p>
-                            <h3 class="text-2xl font-black text-amber-600 mt-1" id="statHourly">0</h3>
-                        </div>
-                        <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 font-bold">
-                            <i class="fa-solid fa-clock text-lg"></i>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500">إجازات أخرى</p>
-                            <h3 class="text-2xl font-black text-purple-600 mt-1" id="statOther">0</h3>
-                        </div>
-                        <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 font-bold">
-                            <i class="fa-solid fa-notes-medical text-lg"></i>
-                        </div>
-                    </div>
+                    <button type="button" id="btnClearFilters" class="text-[11px] font-bold text-slate-500 hover:text-brand-700 px-2 py-2 flex items-center gap-1">
+                        <i class="fa-solid fa-eraser"></i> تفريغ الفلاتر
+                    </button>
                 </div>
-
-                <div id="printableArea" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 print-container">
-                    
-                    <!-- Official Header Section -->
-                    <div class="border-b-2 border-brand-800 pb-4 mb-6">
-                        <div class="grid grid-cols-3 items-center text-center">
-                            
-                            <!-- Right Column -->
-                            <div class="text-right space-y-1">
-                                <h3 class="font-bold text-xs md:text-sm text-slate-900" id="rptMinistry">وزارة الصحة</h3>
-                                <h4 class="font-bold text-xs text-slate-700" id="rptDirectorate">دائرة صحة بغداد / الرصافة</h4>
-                                <h5 class="font-bold text-xs text-brand-700" id="rptHospital">مستشفى الكندي التعليمي</h5>
-                                <p class="text-[11px] text-slate-500" id="rptDepartmentUnit">شعبة الموارد البشرية - وحدة الإجازات</p>
-                            </div>
-
-                            <!-- Middle Column: Logo & Single Line Title -->
-                            <div class="flex flex-col items-center justify-center space-y-1">
-                                <div class="w-14 h-14 border border-slate-300 rounded-full flex items-center justify-center p-1 bg-white mb-1">
-                                    <img id="rptLogoImg" src="" class="max-h-full max-w-full object-contain hidden" alt="الشعار">
-                                    <i id="rptLogoDefault" class="fa-solid fa-hospital-user text-3xl text-brand-700"></i>
-                                </div>
-                                <h2 class="font-black text-base md:text-lg text-slate-900 whitespace-nowrap single-line-title">موقف الاجازات اليومي للموظفين</h2>
-                                <p class="text-xs font-extrabold text-slate-700 bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200 inline-block">
-                                    التاريخ: <span id="rptDate">--</span>
-                                </p>
-                            </div>
-
-                            <!-- Left Column: Dates & Multi-page Pagination -->
-                            <div class="text-left space-y-1 text-xs text-slate-600">
-                                <p><strong>تاريخ الإصدار:</strong> <span id="rptCreatedDate">--</span></p>
-                                <p>
-                                    <strong>حالة الموقف:</strong> <span class="text-emerald-700 font-bold">مصدّق رسمياً</span>
-                                    <span class="page-number-display block text-[11px] text-slate-500 font-semibold mt-0.5"></span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Leaves Report Table -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-center border-collapse print-table" id="dashboardTable">
-                            <thead>
-                                <tr class="bg-brand-900 text-white font-bold">
-                                    <th class="py-2.5 px-2 border border-slate-300 w-10">ت</th>
-                                    <th class="py-2.5 px-3 border border-slate-300 text-right">اسم الموظف</th>
-                                    <th class="py-2.5 px-2 border border-slate-300 text-right">العنوان الوظيفي</th>
-                                    <th class="py-2.5 px-2 border border-slate-300">القسم / الشعبة</th>
-                                    <th class="py-2.5 px-2 border border-slate-300">نوع الإجازة</th>
-                                    <th class="py-2.5 px-3 border border-slate-300">تفاصيل المدة والتاريخ (سطرين)</th>
-                                    <th class="py-2.5 px-3 border border-slate-300 text-right">السبب / الملاحظات</th>
-                                    <th class="py-2.5 px-2 border border-slate-300 no-print w-20">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dashboardTableBody" class="divide-y divide-slate-200">
-                                <!-- Dynamic Table Content -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Empty State -->
-                    <div id="noDataState" class="py-12 text-center space-y-3 no-print">
-                        <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-2xl">
-                            <i class="fa-solid fa-folder-open"></i>
-                        </div>
-                        <p class="text-slate-500 font-semibold text-sm">لا توجد إجازات مسجلة لموقف هذا اليوم بناءً على الفلاتر المختارة.</p>
-                        <button onclick="switchTab('entry')" class="text-xs bg-brand-600 hover:bg-brand-700 text-white font-bold px-4 py-2 rounded-xl transition">
-                            <i class="fa-solid fa-plus-circle ml-1"></i> إضافة إجازة جديدة
-                        </button>
-                    </div>
-
-                    <!-- Official Signatures Footer -->
-                    <div class="mt-12 pt-6 border-t border-slate-300 grid grid-cols-3 gap-4 text-center font-bold text-xs text-slate-800">
-                        <div class="space-y-10">
-                            <p>منظم الموقف / مسؤول الإجازات</p>
-                            <p class="text-slate-400 font-normal text-[11px]">التوقيع: ........................</p>
-                        </div>
-                        <div class="space-y-10">
-                            <p id="rptFooterHR">مسؤول الموارد البشرية</p>
-                            <p class="text-slate-400 font-normal text-[11px]">التوقيع: ........................</p>
-                        </div>
-                        <div class="space-y-10">
-                            <p id="rptFooterManager">مدير المستشفى / المؤسسة</p>
-                            <p class="text-slate-400 font-normal text-[11px]">التوقيع: ........................</p>
-                        </div>
-                    </div>
-
-                    <!-- Non-editable Fixed Single-Line Developer Footer (6pt font) -->
-                    <div class="mt-8 pt-3 border-t border-slate-200 text-center overflow-hidden">
-                        <p class="fixed-footer-line whitespace-nowrap text-slate-600 font-bold tracking-tight inline-block w-full text-center" style="font-size: 6pt !important;">
-                            طُبع هذا الموقف عبر نظام موقف الإجازات اليومي الموحد - جميع الحقوق محفوظة للمطور: تقني طبي - احمد زياد رحيمه 07723064622
-                        </p>
-                    </div>
-
-                </div>
-
             </div>
 
-            <div id="view-entry" class="tab-view hidden space-y-6">
-                
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto">
-                    <div class="flex items-center justify-between border-b pb-4 mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-lg">
-                                <i class="fa-solid fa-user-plus"></i>
-                            </div>
-                            <div>
-                                <h2 class="font-extrabold text-base text-slate-900" id="entryFormTitle">إضافة إجازة جديدة للموقف</h2>
-                                <p class="text-xs text-slate-500">أدخل بيانات الإجازة وتاريخ البداية والانتهاء المقترن تلقائياً</p>
-                            </div>
-                        </div>
-                        <button onclick="resetEntryForm()" class="text-xs text-slate-500 hover:text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border flex items-center gap-1 font-semibold">
-                            <i class="fa-solid fa-rotate-left"></i> تفريغ الحقول
-                        </button>
+            <!-- بطاقات إحصائية -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 no-print">
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500">إجمالي السجلات</p>
+                        <h3 class="text-2xl font-black text-slate-800 mt-0.5 stat-value" id="statTotal">0</h3>
                     </div>
+                    <div class="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600"><i class="fa-solid fa-users"></i></div>
+                </div>
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500">اعتيادية</p>
+                        <h3 class="text-2xl font-black text-sky-600 mt-0.5 stat-value" id="statCasual">0</h3>
+                    </div>
+                    <div class="w-9 h-9 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600"><i class="fa-solid fa-calendar-check"></i></div>
+                </div>
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500">زمنية</p>
+                        <h3 class="text-2xl font-black text-amber-600 mt-0.5 stat-value" id="statHourly">0</h3>
+                    </div>
+                    <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600"><i class="fa-solid fa-clock"></i></div>
+                </div>
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500">أنواع أخرى</p>
+                        <h3 class="text-2xl font-black text-purple-600 mt-0.5 stat-value" id="statOther">0</h3>
+                    </div>
+                    <div class="w-9 h-9 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600"><i class="fa-solid fa-notes-medical"></i></div>
+                </div>
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between col-span-2 md:col-span-1">
+                    <div>
+                        <p class="text-[11px] font-semibold text-slate-500">مجموع الأيام المخصومة</p>
+                        <h3 class="text-2xl font-black text-emerald-700 mt-0.5 stat-value" id="statDays">0</h3>
+                    </div>
+                    <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600"><i class="fa-solid fa-calculator"></i></div>
+                </div>
+            </div>
 
-                    <form id="leaveEntryForm" onsubmit="handleSaveLeave(event)" class="space-y-5">
+            <!-- منطقة الطباعة -->
+            <div id="printableArea" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 print-container">
+                <div class="border-b-2 border-brand-800 pb-3 mb-5">
+                    <div class="grid grid-cols-3 items-center text-center gap-2">
+                        <div class="text-right space-y-0.5">
+                            <h3 class="font-bold text-[11px] md:text-xs text-slate-900" id="rptMinistry">وزارة الصحة</h3>
+                            <h4 class="font-bold text-[11px] text-slate-700" id="rptDirectorate"></h4>
+                            <h5 class="font-bold text-[11px] text-brand-700" id="rptHospital"></h5>
+                            <p class="text-[10px] text-slate-500" id="rptDepartmentUnit"></p>
+                        </div>
+                        <div class="flex flex-col items-center justify-center space-y-1">
+                            <div class="w-14 h-14 border border-slate-300 rounded-full flex items-center justify-center p-1 bg-white">
+                                <img id="rptLogoImg" src="" class="max-h-full max-w-full object-contain hidden" alt="الشعار">
+                                <i id="rptLogoDefault" class="fa-solid fa-hospital-user text-2xl text-brand-700"></i>
+                            </div>
+                            <h2 class="font-black text-sm md:text-base text-slate-900 whitespace-nowrap" id="rptTitle">موقف الإجازات اليومي للموظفين</h2>
+                            <p class="text-[11px] font-extrabold text-slate-700 bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200">
+                                التاريخ: <span id="rptDate">--</span>
+                            </p>
+                        </div>
+                        <div class="text-left space-y-0.5 text-[11px] text-slate-600">
+                            <p><strong>تاريخ الإصدار:</strong> <span id="rptCreatedDate">--</span></p>
+                            <p><strong>عدد السجلات:</strong> <span id="rptCount">0</span></p>
+                            <p><strong>الحالة:</strong> <span class="text-emerald-700 font-bold">مصدّق رسمياً</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[11px] text-center border-collapse print-table" id="dashboardTable">
+                        <thead>
+                            <tr class="bg-brand-900 text-white font-bold">
+                                <th class="py-2 px-2 border border-slate-300 w-9">ت</th>
+                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="empName">اسم الموظف <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="jobTitle">العنوان الوظيفي <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="dept">القسم / الشعبة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="leaveType">نوع الإجازة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="fromDate">المدة والتاريخ <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 text-right">السبب / الملاحظات</th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="status">الحالة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 no-print w-16">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="noDataState" class="hidden text-center py-10">
+                    <i class="fa-solid fa-inbox text-3xl text-slate-300"></i>
+                    <p class="text-sm font-bold text-slate-400 mt-2">لا توجد سجلات مطابقة</p>
+                </div>
+
+                <!-- تذييل المطبوع -->
+                <div class="mt-8 pt-4 grid grid-cols-2 gap-6 text-center text-[11px]">
+                    <div>
+                        <p class="font-bold text-slate-700" id="rptFooterHR">مسؤول الموارد البشرية</p>
+                        <p class="text-slate-400 mt-6">التوقيع: .....................</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-700" id="rptFooterManager">مدير المستشفى</p>
+                        <p class="text-slate-400 mt-6">التوقيع: .....................</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الترقيم والفرز -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 no-print flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-[11px] text-slate-600">
+                    <span>عرض</span>
+                    <select id="pageSize" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                        <option value="0">الكل</option>
+                    </select>
+                    <span>سجل — <strong id="pageInfo" class="text-slate-800">0</strong></span>
+                </div>
+                <div class="flex items-center gap-1" id="pagerControls">
+                    <button type="button" data-page="first" class="pager-btn px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"><i class="fa-solid fa-angles-right"></i></button>
+                    <button type="button" data-page="prev" class="pager-btn px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"><i class="fa-solid fa-angle-right"></i></button>
+                    <span id="pageNumbers" class="flex items-center gap-1 mx-1"></span>
+                    <button type="button" data-page="next" class="pager-btn px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"><i class="fa-solid fa-angle-left"></i></button>
+                    <button type="button" data-page="last" class="pager-btn px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"><i class="fa-solid fa-angles-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             التبويب 2: إدخال / تعديل إجازة
+             ============================================================ -->
+        <div id="view-entry" class="tab-view hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                <div class="lg:col-span-2">
+                    <form id="entryForm" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4" novalidate>
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                            <h2 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus text-emerald-600"></i>
+                                <span id="entryFormTitle">إدخال إجازة جديدة</span>
+                            </h2>
+                            <span id="entryEditBadge" class="hidden badge bg-amber-100 text-amber-800 border-amber-200">وضع التعديل</span>
+                        </div>
+
                         <input type="hidden" id="entryEditId" value="">
 
-                        <!-- Employee Info Row -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            
-                            <!-- Employee Name Field -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div class="relative">
-                                <label for="entryEmpName" class="block text-xs font-bold text-slate-700 mb-1">اسم الموظف الثلاثي/الرباعي <span class="text-rose-500">*</span></label>
-                                <input type="text" id="entryEmpName" required autocomplete="off" oninput="handleEmployeeSearch(this.value)" placeholder="اكتب الاسم للاختيار أو الإضافة..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                <div id="empSuggestions" class="absolute z-30 right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto hidden divide-y divide-slate-100">
-                                    <!-- Dynamic Suggestions -->
-                                </div>
+                                <label for="entryEmpName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم الموظف <span class="text-rose-600">*</span></label>
+                                <input type="text" id="entryEmpName" autocomplete="off" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500" placeholder="اكتب الاسم للبحث في الدليل...">
+                                <div id="staffSuggestions" class="hidden absolute z-30 right-0 left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto"></div>
                             </div>
-
-                            <!-- Job Title -->
                             <div>
-                                <label for="entryJobTitle" class="block text-xs font-bold text-slate-700 mb-1">العنوان الوظيفي <span class="text-rose-500">*</span></label>
-                                <input type="text" id="entryJobTitle" required placeholder="مثال: طبيب مقيم، ممرض جامعي" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
+                                <label for="entryJobTitle" class="block text-[11px] font-bold text-slate-600 mb-1">العنوان الوظيفي <span class="text-rose-600">*</span></label>
+                                <input type="text" id="entryJobTitle" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
-
-                            <!-- Main Department -->
                             <div>
-                                <label for="entryDept" class="block text-xs font-bold text-slate-700 mb-1">القسم الرئيسي <span class="text-rose-500">*</span></label>
-                                <select id="entryDept" required onchange="updateSectionDropdown()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                    <option value="" disabled selected>اختر القسم...</option>
+                                <label for="entryDept" class="block text-[11px] font-bold text-slate-600 mb-1">القسم الرئيسي</label>
+                                <select id="entryDept" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="">اختر القسم...</option>
                                 </select>
                             </div>
-
-                        </div>
-
-                        <!-- Section & Leave Type Row -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            
-                            <!-- Section / Division -->
                             <div>
-                                <label for="entrySection" class="block text-xs font-bold text-slate-700 mb-1">الشعبة / الوحدة التابعة</label>
-                                <select id="entrySection" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                    <option value="">بدون شعبة / لا يوجد</option>
+                                <label for="entrySection" class="block text-[11px] font-bold text-slate-600 mb-1">الشعبة / الوحدة</label>
+                                <select id="entrySection" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="">بدون شعبة</option>
                                 </select>
                             </div>
-
-                            <!-- Leave Type Dropdown -->
                             <div>
-                                <label for="entryType" class="block text-xs font-bold text-slate-700 mb-1">نوع الإجازة <span class="text-rose-500">*</span></label>
-                                <select id="entryType" onchange="toggleFormFields()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                    <!-- Dynamic Leave Types -->
+                                <label for="entryType" class="block text-[11px] font-bold text-slate-600 mb-1">نوع الإجازة <span class="text-rose-600">*</span></label>
+                                <select id="entryType" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></select>
+                            </div>
+                            <div>
+                                <label for="entryStatus" class="block text-[11px] font-bold text-slate-600 mb-1">حالة السجل</label>
+                                <select id="entryStatus" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="approved">معتمدة</option>
+                                    <option value="pending">معلّقة</option>
+                                    <option value="rejected">مرفوضة</option>
+                                    <option value="cancelled">ملغاة</option>
                                 </select>
                             </div>
-
-                            <!-- Leave Notes -->
-                            <div>
-                                <label for="entryNotes" class="block text-xs font-bold text-slate-700 mb-1">سبب الإجازة / ملاحظات</label>
-                                <input type="text" id="entryNotes" placeholder="اختياري (مثال: ظروف خاصة، أمر إداري)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                            </div>
-
                         </div>
 
-                        <!-- Linked Dates & Days Duration Section -->
-                        <div class="border-t border-slate-100 pt-4">
-                            
-                            <!-- Days & Dates Interlinked Container -->
-                            <div id="daysRangeContainer" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    
-                                    <!-- Start Date -->
-                                    <div>
-                                        <label for="entryFromDate" class="block text-xs font-bold text-slate-700 mb-1">تبدأ من تاريخ <span class="text-rose-500">*</span></label>
-                                        <input type="date" id="entryFromDate" onchange="onFromDateOrDaysChange()" required class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    </div>
-
-                                    <!-- Duration in Days -->
-                                    <div>
-                                        <label for="entryDaysCount" class="block text-xs font-bold text-slate-700 mb-1">عدد الأيام (المدة)</label>
-                                        <input type="number" min="1" value="1" id="entryDaysCount" oninput="onFromDateOrDaysChange()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    </div>
-
-                                    <!-- End Date -->
-                                    <div>
-                                        <label for="entryToDate" class="block text-xs font-bold text-brand-700 mb-1">تنتهي في تاريخ (قابل للتعديل)</label>
-                                        <input type="date" id="entryToDate" onchange="onToDateChange()" required class="w-full bg-white border border-brand-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-brand-900 outline-none">
-                                    </div>
-
+                        <!-- حقول الإجازة بالأيام -->
+                        <div id="daysRangeContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label for="entryFromDate" class="block text-[11px] font-bold text-slate-600 mb-1">من تاريخ <span class="text-rose-600">*</span></label>
+                                    <input type="date" id="entryFromDate" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
                                 </div>
-                                <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info text-brand-500 ml-1"></i> يتم حساب تاريخ الانتهاء تلقائياً عند تغيير عدد الأيام، وإذا عدلت تاريخ الانتهاء يتم تحديث الأيام تلقائياً.</p>
-                            </div>
-
-                            <!-- Hours Range Container (for Hourly Leaves) -->
-                            <div id="timeRangeBox" class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 space-y-3 hidden">
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label for="entryLeaveDate" class="block text-xs font-bold text-amber-900 mb-1">تاريخ الإجازة الزمنية</label>
-                                        <input type="date" id="entryLeaveDate" class="w-full bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    </div>
-                                    <div>
-                                        <label for="entryHoursCount" class="block text-xs font-bold text-amber-900 mb-1">عدد الساعات</label>
-                                        <input type="number" min="1" max="8" value="2" id="entryHoursCount" class="w-full bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label for="entryFromTime" class="block text-[11px] font-bold text-amber-900 mb-1">من الساعة</label>
-                                            <input type="time" id="entryFromTime" value="09:00" class="w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 outline-none">
-                                        </div>
-                                        <div>
-                                            <label for="entryToTime" class="block text-[11px] font-bold text-amber-900 mb-1">إلى الساعة</label>
-                                            <input type="time" id="entryToTime" value="11:00" class="w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 outline-none">
-                                        </div>
-                                    </div>
+                                <div>
+                                    <label for="entryToDate" class="block text-[11px] font-bold text-slate-600 mb-1">إلى تاريخ <span class="text-rose-600">*</span></label>
+                                    <input type="date" id="entryToDate" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="entryDaysCount" class="block text-[11px] font-bold text-slate-600 mb-1">عدد الأيام التقويمية</label>
+                                    <input type="number" id="entryDaysCount" min="1" value="1" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
                                 </div>
                             </div>
-
+                            <p class="text-[10px] text-slate-500 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-info"></i>
+                                تغيير عدد الأيام يحدّث تاريخ النهاية تلقائياً، وتغيير تاريخ النهاية يحدّث عدد الأيام.
+                            </p>
                         </div>
 
-                        <!-- Form Submit Buttons -->
-                        <div class="pt-4 border-t flex justify-end gap-2">
-                            <button type="button" onclick="switchTab('dashboard')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition">
-                                إلغاء
-                            </button>
-                            <button type="submit" id="saveLeaveBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition shadow-md flex items-center gap-1.5">
+                        <!-- حقول الإجازة الزمنية -->
+                        <div id="timeRangeBox" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                    <label for="entryLeaveDate" class="block text-[11px] font-bold text-slate-600 mb-1">التاريخ <span class="text-rose-600">*</span></label>
+                                    <input type="date" id="entryLeaveDate" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="entryFromTime" class="block text-[11px] font-bold text-slate-600 mb-1">من الساعة</label>
+                                    <input type="time" id="entryFromTime" value="09:00" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="entryToTime" class="block text-[11px] font-bold text-slate-600 mb-1">إلى الساعة</label>
+                                    <input type="time" id="entryToTime" value="11:00" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="entryHoursCount" class="block text-[11px] font-bold text-slate-600 mb-1">عدد الساعات</label>
+                                    <input type="number" id="entryHoursCount" min="1" max="24" value="2" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="entryNotes" class="block text-[11px] font-bold text-slate-600 mb-1">السبب / الملاحظات</label>
+                            <textarea id="entryNotes" rows="2" maxlength="500" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500" placeholder="مثال: ظرف عائلي / مراجعة دائرة رسمية"></textarea>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                            <button type="submit" id="saveLeaveBtn" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm">
                                 <i class="fa-solid fa-check"></i> حفظ الموقف اليومي
                             </button>
+                            <button type="button" id="resetEntryBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                                <i class="fa-solid fa-rotate-left"></i> تفريغ الحقول
+                            </button>
+                            <span id="entryDirtyHint" class="text-[11px] font-bold text-amber-600 hidden">
+                                <i class="fa-solid fa-circle-exclamation"></i> تغييرات غير محفوظة
+                            </span>
                         </div>
                     </form>
                 </div>
 
-            </div>
-
-            <div id="view-settings" class="tab-view hidden space-y-6">
-                
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    <!-- Settings Left Column -->
-                    <div class="lg:col-span-2 space-y-6">
-                        
-                        <!-- Header & Institution Card -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center gap-3 border-b pb-3">
-                                <div class="w-9 h-9 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-hospital"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-extrabold text-sm text-slate-900">بيانات الترويسة والمؤسسة الرسمية</h3>
-                                    <p class="text-xs text-slate-500">تظهر هذه الترويسة أعلى تقارير PDF والطباعة والإكسل</p>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="setMinistry" class="block text-xs font-bold text-slate-700 mb-1">اسم الوزارة</label>
-                                    <input type="text" id="setMinistry" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                </div>
-                                <div>
-                                    <label for="setDirectorate" class="block text-xs font-bold text-slate-700 mb-1">اسم دائرة الصحة</label>
-                                    <input type="text" id="setDirectorate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                </div>
-                                <div>
-                                    <label for="setHospital" class="block text-xs font-bold text-slate-700 mb-1">اسم المستشفى / المؤسسة</label>
-                                    <input type="text" id="setHospital" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                </div>
-                                <div>
-                                    <label for="setDepartmentUnit" class="block text-xs font-bold text-slate-700 mb-1">اسم القسم / شعبة الإجازات</label>
-                                    <input type="text" id="setDepartmentUnit" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none">
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-3">
-                                <div>
-                                    <label for="setFooterHR" class="block text-xs font-bold text-slate-700 mb-1">مسمى التوقيع الأوسط</label>
-                                    <input type="text" id="setFooterHR" placeholder="مثال: مسؤول الموارد البشرية" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none">
-                                </div>
-                                <div>
-                                    <label for="setFooterManager" class="block text-xs font-bold text-slate-700 mb-1">مسمى التوقيع الأيسر</label>
-                                    <input type="text" id="setFooterManager" placeholder="مثال: مدير المستشفى" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none">
-                                </div>
-                            </div>
-
-                            <!-- Readonly Developer Footer Info Box -->
-                            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
-                                <p class="font-bold"><i class="fa-solid fa-lock ml-1"></i> الهامش السفلي المعتمد (بحجم 6pt وغير قابل للتعديل):</p>
-                                <p class="text-[10px] font-semibold text-amber-800 bg-white p-2 rounded border border-amber-200 font-mono">
-                                    "طُبع هذا الموقف عبر نظام موقف الإجازات اليومي الموحد - جميع الحقوق محفوظة للمطور: تقني طبي - احمد زياد رحيمه 07723064622"
-                                </p>
-                            </div>
-
-                            <div class="flex justify-end pt-2">
-                                <button onclick="saveHeaderSettings()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition shadow-sm">
-                                    <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ الترويسة
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Leave Types Management Card -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center font-bold">
-                                        <i class="fa-solid fa-tags"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-extrabold text-sm text-slate-900">إدارة أنواع الإجازات</h3>
-                                        <p class="text-xs text-slate-500">إضافة وتعديل أنواع الإجازات المتاحة في القوائم المنسدلة</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex gap-2">
-                                <input type="text" id="newLeaveTypeName" placeholder="اكتب اسم نوع إجازة جديد..." class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none">
-                                <button onclick="addLeaveType()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">
-                                    <i class="fa-solid fa-plus ml-1"></i> إضافة نوع
-                                </button>
-                            </div>
-
-                            <div id="leaveTypesListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-52 overflow-y-auto pt-2">
-                                <!-- Dynamic Leave Types Items -->
-                            </div>
-                        </div>
-
-                        <!-- Logo Upload Section -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center gap-3 border-b pb-3">
-                                <div class="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold">
-                                    <i class="fa-solid fa-image"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-extrabold text-sm text-slate-900">شعار المستشفى / المؤسسة (Logo)</h3>
-                                    <p class="text-xs text-slate-500">يتم حفظ الشعار بترميز Base64 في المتصفح محلياً</p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap items-center gap-6">
-                                <div class="w-20 h-20 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center p-2 bg-slate-50 relative overflow-hidden" id="logoPreviewBox">
-                                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-300" id="logoPreviewPlaceholder"></i>
-                                    <img id="logoPreviewImg" src="" class="max-h-full max-w-full object-contain hidden" alt="Logo Preview">
-                                </div>
-
-                                <div class="space-y-3 flex-grow">
-                                    <label class="block">
-                                        <input type="file" id="logoInput" accept="image/*" onchange="handleLogoUpload(event)" class="block w-full text-xs text-slate-500 file:ml-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer">
-                                    </label>
-                                    <button onclick="removeLogo()" id="removeLogoBtn" class="text-xs text-rose-600 hover:text-rose-800 font-bold hidden">
-                                        <i class="fa-solid fa-trash-can ml-1"></i> حذف الشعار
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Departments & Sections Management -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center font-bold">
-                                        <i class="fa-solid fa-sitemap"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-extrabold text-sm text-slate-900">إدارة الأقسام والشعب الطبية والإدارية</h3>
-                                        <p class="text-xs text-slate-500">إضافة وتعديل هيكلية المستشفى لاستخدامها في الموقف</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-3">
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                    <input type="text" id="newDeptName" placeholder="اسم القسم الرئيسي..." class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    <input type="text" id="newSectionName" placeholder="اسم الشعبة التابعة (اختياري)..." class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                    <button onclick="addDepartmentOrSection()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
-                                        <i class="fa-solid fa-plus ml-1"></i> إضافة قسم / شعبة
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div id="departmentsListContainer" class="space-y-2 max-h-52 overflow-y-auto pr-1">
-                                <!-- Dynamic List -->
-                            </div>
-                        </div>
-
+                <!-- لوحة التحليل الفوري -->
+                <div class="space-y-4">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+                        <h3 class="font-extrabold text-xs text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
+                            <i class="fa-solid fa-calculator text-brand-600"></i> احتساب المدة
+                        </h3>
+                        <div id="entryAnalysis" class="space-y-2 text-[11px]"></div>
                     </div>
 
-                    <!-- Settings Right Column -->
-                    <div class="space-y-6">
-                        
-                        <!-- Pre-stored Staff Directory Card -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b pb-3">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-users-gear text-emerald-600 text-lg"></i>
-                                    <h3 class="font-extrabold text-sm text-slate-900">دليل أسماء الموظفين</h3>
-                                </div>
-                                <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold" id="staffCountBadge">0 موظف</span>
-                            </div>
-
-                            <div class="space-y-2">
-                                <input type="text" id="quickStaffName" placeholder="اسم الموظف الرباعي..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                <input type="text" id="quickStaffTitle" placeholder="العنوان الوظيفي..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none">
-                                <button onclick="addQuickStaff()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 rounded-lg transition">
-                                    <i class="fa-solid fa-user-plus ml-1"></i> إضافة يدوي لدليل الموظفين
-                                </button>
-                            </div>
-
-                            <div id="staffListContainer" class="space-y-1.5 max-h-56 overflow-y-auto pr-1 border-t pt-2">
-                                <!-- Dynamic Staff Items -->
-                            </div>
-                        </div>
-
-                        <!-- Backup & Reset Card -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-                            <div class="flex items-center gap-2 border-b pb-3">
-                                <i class="fa-solid fa-database text-rose-600 text-lg"></i>
-                                <h3 class="font-extrabold text-sm text-slate-900">النسخ الاحتياطي والصيانة</h3>
-                            </div>
-
-                            <p class="text-xs text-slate-500 leading-relaxed">حفظ واسترجاع كافة البيانات والإعدادات في ملف JSON خارجي.</p>
-
-                            <div class="space-y-2">
-                                <button onclick="exportBackupJSON()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-download text-brand-600"></i> تصدير نسخة احتياطية (JSON)
-                                </button>
-
-                                <label class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-upload text-emerald-600"></i> استرجاع نسخة احتياطية
-                                    <input type="file" id="importJsonInput" accept=".json" onchange="importBackupJSON(event)" class="hidden">
-                                </label>
-
-                                <button onclick="resetFactorySettings()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-2 mt-4">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> إعادة ضبط المصنع
-                                </button>
-                            </div>
-                        </div>
-
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+                        <h3 class="font-extrabold text-xs text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
+                            <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> آخر السجلات المُدخلة
+                        </h3>
+                        <div id="entryRecent" class="space-y-2 text-[11px]"></div>
                     </div>
 
+                    <div class="bg-amber-50 rounded-2xl border border-amber-200 p-4">
+                        <h3 class="font-extrabold text-xs text-amber-900 flex items-center gap-2 mb-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> سياسة احتساب الأيام الحالية
+                        </h3>
+                        <div id="entryPolicy" class="text-[11px] text-amber-900 space-y-1"></div>
+                        <button type="button" data-app-tab="settings" class="jump-settings mt-3 text-[11px] font-bold text-amber-900 underline">تغيير السياسة من الإعدادات</button>
+                    </div>
                 </div>
+            </div>
+        </div>
 
+        <!-- ============================================================
+             التبويب 3: التقارير
+             ============================================================ -->
+        <div id="view-reports" class="tab-view hidden space-y-5">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 no-print space-y-3">
+                <h2 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-sky-600"></i> مُنشئ التقارير
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                        <label for="reportMode" class="block text-[11px] font-bold text-slate-600 mb-1">نوع التقرير</label>
+                        <select id="reportMode" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="employee">موظف محدد</option>
+                            <option value="department">قسم محدد</option>
+                            <option value="all">تقرير شامل</option>
+                            <option value="balance">أرصدة الموظفين</option>
+                            <option value="compensation">الأيام التعويضية</option>
+                        </select>
+                    </div>
+                    <div id="reportEmpBox">
+                        <label for="reportEmpName" class="block text-[11px] font-bold text-slate-600 mb-1">الموظف</label>
+                        <select id="reportEmpName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500"></select>
+                    </div>
+                    <div id="reportDeptBox" class="hidden">
+                        <label for="reportDept" class="block text-[11px] font-bold text-slate-600 mb-1">القسم</label>
+                        <select id="reportDept" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="">جميع الأقسام</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="reportPeriodType" class="block text-[11px] font-bold text-slate-600 mb-1">الفترة</label>
+                        <select id="reportPeriodType" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="month">شهر</option>
+                            <option value="year">سنة</option>
+                            <option value="range">بين تاريخين</option>
+                        </select>
+                    </div>
+                    <div id="reportMonthBox">
+                        <label for="reportMonth" class="block text-[11px] font-bold text-slate-600 mb-1">الشهر</label>
+                        <input type="month" id="reportMonth" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div id="reportYearBox" class="hidden">
+                        <label for="reportYear" class="block text-[11px] font-bold text-slate-600 mb-1">السنة</label>
+                        <input type="number" id="reportYear" min="2000" max="2100" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div id="reportRangeBox" class="hidden md:col-span-2">
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">بين تاريخين</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="reportFrom" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                            <span class="text-[11px] font-bold text-slate-500">إلى</span>
+                            <input type="date" id="reportTo" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnRunReport" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> إنشاء التقرير
+                    </button>
+                    <button type="button" id="btnReportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Excel
+                    </button>
+                    <button type="button" id="btnReportPdf" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button type="button" id="btnReportPrint" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> طباعة
+                    </button>
+                </div>
             </div>
 
-        </main>
+            <div id="reportOutput" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 print-container"></div>
+        </div>
+
+        <!-- ============================================================
+             التبويب 4: الإحصائيات
+             ============================================================ -->
+        <div id="view-analytics" class="tab-view hidden space-y-5">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 no-print flex flex-wrap items-end gap-3">
+                <div>
+                    <label for="anFrom" class="block text-[11px] font-bold text-slate-600 mb-1">من تاريخ</label>
+                    <input type="date" id="anFrom" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                </div>
+                <div>
+                    <label for="anTo" class="block text-[11px] font-bold text-slate-600 mb-1">إلى تاريخ</label>
+                    <input type="date" id="anTo" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                </div>
+                <div>
+                    <label for="anQuick" class="block text-[11px] font-bold text-slate-600 mb-1">فترة سريعة</label>
+                    <select id="anQuick" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        <option value="">— اختر —</option>
+                        <option value="today">اليوم</option>
+                        <option value="week">آخر 7 أيام</option>
+                        <option value="month">الشهر الحالي</option>
+                        <option value="year">السنة الحالية</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="anDept" class="block text-[11px] font-bold text-slate-600 mb-1">القسم</label>
+                    <select id="anDept" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        <option value="">جميع الأقسام</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="anType" class="block text-[11px] font-bold text-slate-600 mb-1">نوع الإجازة</label>
+                    <select id="anType" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        <option value="">جميع الأنواع</option>
+                    </select>
+                </div>
+                <button type="button" id="btnRunAnalytics" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-chart-simple"></i> تحديث
+                </button>
+                <button type="button" id="btnAnalyticsExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel"></i> تصدير البيانات
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-slate-500">إجمالي السجلات في الفترة</p>
+                    <h3 class="text-2xl font-black text-slate-800 mt-1 stat-value" id="kpiTotal">0</h3>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-slate-500">مجازون حالياً (اليوم)</p>
+                    <h3 class="text-2xl font-black text-amber-600 mt-1 stat-value" id="kpiCurrent">0</h3>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-slate-500">أعلى قسم</p>
+                    <h3 class="text-base font-black text-brand-700 mt-1" id="kpiTopDept">—</h3>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[11px] font-semibold text-slate-500">مجموع الأيام المخصومة</p>
+                    <h3 class="text-2xl font-black text-emerald-700 mt-1 stat-value" id="kpiDays">0</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                    <h3 class="font-extrabold text-xs text-slate-800 mb-3">الإجازات حسب القسم</h3>
+                    <div class="h-72"><canvas id="chartByDept"></canvas></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                    <h3 class="font-extrabold text-xs text-slate-800 mb-3">توزيع أنواع الإجازات</h3>
+                    <div class="h-72"><canvas id="chartByType"></canvas></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 lg:col-span-2">
+                    <h3 class="font-extrabold text-xs text-slate-800 mb-3">الاتجاه الزمني (عدد الإجازات شهرياً)</h3>
+                    <div class="h-72"><canvas id="chartTrend"></canvas></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 lg:col-span-2">
+                    <h3 class="font-extrabold text-xs text-slate-800 mb-3">أكثر 10 موظفين إجازات في الفترة</h3>
+                    <div class="h-80"><canvas id="chartTopEmp"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             التبويب 5: الإعدادات
+             ============================================================ -->
+        <div id="view-settings" class="tab-view hidden space-y-5">
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 no-print flex flex-wrap gap-1" id="settingsTabs">
+                <button type="button" data-stab="general" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">الترويسة والشعار</button>
+                <button type="button" data-stab="policy" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">سياسة الأيام</button>
+                <button type="button" data-stab="holidays" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">العطل الرسمية</button>
+                <button type="button" data-stab="types" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">أنواع الإجازات</button>
+                <button type="button" data-stab="org" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">الأقسام والشعب</button>
+                <button type="button" data-stab="staff" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">الموظفون</button>
+                <button type="button" data-stab="storage" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">التخزين والنسخ</button>
+                <button type="button" data-stab="audit" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">سجل التدقيق</button>
+                <button type="button" data-stab="about" class="stab-btn px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 hover:bg-slate-100">حول النظام</button>
+            </div>
+
+            <!-- الترويسة والشعار -->
+            <div class="stab-panel" data-spanel="general">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">بيانات الترويسة الرسمية</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label for="setMinistry" class="block text-[11px] font-bold text-slate-600 mb-1">الوزارة</label><input type="text" id="setMinistry" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setDirectorate" class="block text-[11px] font-bold text-slate-600 mb-1">الدائرة</label><input type="text" id="setDirectorate" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setHospital" class="block text-[11px] font-bold text-slate-600 mb-1">المستشفى / المؤسسة</label><input type="text" id="setHospital" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setDepartmentUnit" class="block text-[11px] font-bold text-slate-600 mb-1">القسم / الوحدة</label><input type="text" id="setDepartmentUnit" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setFooterHR" class="block text-[11px] font-bold text-slate-600 mb-1">توقيع أول (يمين)</label><input type="text" id="setFooterHR" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setFooterManager" class="block text-[11px] font-bold text-slate-600 mb-1">توقيع ثانٍ (يسار)</label><input type="text" id="setFooterManager" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setOperatorName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم مشغّل النظام (يظهر في سجل التدقيق)</label><input type="text" id="setOperatorName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div><label for="setRptTitle" class="block text-[11px] font-bold text-slate-600 mb-1">عنوان الموقف المطبوع</label><input type="text" id="setRptTitle" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-4">
+                        <h3 class="font-extrabold text-sm text-slate-800 pb-2">شعار المؤسسة</h3>
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div class="w-24 h-24 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center bg-slate-50 overflow-hidden">
+                                <img id="logoPreviewImg" src="" class="max-h-full max-w-full object-contain hidden" alt="الشعار">
+                                <i id="logoPreviewPlaceholder" class="fa-solid fa-image text-2xl text-slate-300"></i>
+                            </div>
+                            <div class="space-y-2">
+                                <input type="file" id="logoInput" accept="image/*" class="hidden">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" id="btnPickLogo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-[11px] font-bold transition"><i class="fa-solid fa-upload"></i> اختيار صورة</button>
+                                    <button type="button" id="removeLogoBtn" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl text-[11px] font-bold transition"><i class="fa-solid fa-trash-can"></i> حذف الشعار</button>
+                                </div>
+                                <p class="text-[10px] text-slate-500">PNG أو JPG بحجم أقل من 2 ميجابايت. يُحفظ داخل ملف الإعدادات.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-4">
+                        <button type="button" id="btnSaveSettings" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> حفظ بيانات الترويسة
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- سياسة احتساب الأيام -->
+            <div class="stab-panel hidden" data-spanel="policy">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-5">
+                    <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">سياسة احتساب أيام الإجازة</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-700">العطل الرسمية داخل مدة الإجازة</label>
+                            <div class="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="radio" name="setHolidayMode" value="inside" class="mt-1 accent-brand-600">
+                                    <span class="text-[11px]">
+                                        <strong class="text-slate-800">العطلة من ضمن الإجازة</strong><br>
+                                        <span class="text-slate-500">لا تؤثر على عدد الأيام. مثال: إجازة 3 أيام تضم عطلة رسمية → تُخصم 3 أيام.</span>
+                                    </span>
+                                </label>
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="radio" name="setHolidayMode" value="excluded" class="mt-1 accent-brand-600">
+                                    <span class="text-[11px]">
+                                        <strong class="text-slate-800">العطلة تُستثنى من الإجازة</strong><br>
+                                        <span class="text-slate-500">يُخصم أقل ويُستحق يوم تعويضي. مثال: إجازة 3 أيام تضم عطلة رسمية → تُخصم يومان + يوم تعويضي.</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <p class="text-[10px] text-slate-500">يمكن تجاوز هذه السياسة لكل عطلة على حدة من شاشة «العطل الرسمية».</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="setCountWeekend" class="mt-1 accent-brand-600 w-4 h-4">
+                                    <span class="text-[11px]">
+                                        <strong class="text-slate-800">تُحسب أيام الجمعة والسبت من الإجازة</strong><br>
+                                        <span class="text-slate-500">عند إلغاء التحديد تُستثنى أيام الراحة الأسبوعية من الأيام المخصومة، وهي لا تولّد أياماً تعويضية لأنها راحة عامة.</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div>
+                                <label for="setDefaultBalance" class="block text-[11px] font-bold text-slate-600 mb-1">الرصيد السنوي الافتراضي للموظف (يوم)</label>
+                                <input type="number" id="setDefaultBalance" min="0" max="365" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+                            <div>
+                                <label for="setDefaultStatus" class="block text-[11px] font-bold text-slate-600 mb-1">حالة السجل الجديد افتراضياً</label>
+                                <select id="setDefaultStatus" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="approved">معتمدة</option>
+                                    <option value="pending">معلّقة</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-4 flex flex-wrap items-center gap-2">
+                        <button type="button" id="btnSavePolicy" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> حفظ السياسة
+                        </button>
+                        <button type="button" id="btnRecalcAll" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-rotate"></i> إعادة احتساب كل السجلات بالسياسة الحالية
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-500">«إعادة الاحتساب» تحدّث الأيام المخصومة والأيام التعويضية لكل السجلات وفق السياسة والعطل الحالية، وتُسجَّل في سجل التدقيق.</p>
+                </div>
+            </div>
+
+            <!-- العطل الرسمية -->
+            <div class="stab-panel hidden" data-spanel="holidays">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                        <h3 class="font-extrabold text-sm text-slate-800">إدارة العطل الرسمية</h3>
+                        <span class="text-[11px] font-bold text-slate-500" id="holidayCount">0 عطلة</span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="text" id="holidaySearch" placeholder="بحث باسم العطلة..." class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500 min-w-[180px]">
+                        <select id="holidayYearFilter" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="">جميع السنوات</option>
+                        </select>
+                        <button type="button" id="btnAddHoliday" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> إضافة عطلة</button>
+                        <button type="button" id="btnSeedHolidays" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> تهيئة العطل الثابتة لسنة</button>
+                        <button type="button" id="btnMovableHint" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-moon"></i> العطل المتحركة</button>
+                        <button type="button" id="btnExportHolidays" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-file-excel"></i> تصدير</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[11px] text-center border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold">
+                                    <th class="py-2 px-2 border border-slate-200 w-9">ت</th>
+                                    <th class="py-2 px-2 border border-slate-200 text-right">اسم العطلة</th>
+                                    <th class="py-2 px-2 border border-slate-200">التاريخ</th>
+                                    <th class="py-2 px-2 border border-slate-200">اليوم</th>
+                                    <th class="py-2 px-2 border border-slate-200">تتكرر سنوياً</th>
+                                    <th class="py-2 px-2 border border-slate-200">داخل الإجازة</th>
+                                    <th class="py-2 px-2 border border-slate-200 w-20">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="holidayList"></tbody>
+                        </table>
+                    </div>
+                    <div id="holidayEmpty" class="hidden text-center py-8 text-slate-400 text-xs font-bold">لا توجد عطل مسجلة</div>
+                    <p class="text-[10px] text-slate-500">
+                        «داخل الإجازة» تعني أن العطلة تُحسب من ضمن أيام الإجازة ولا تؤثر عليها.
+                        وإلغاء التحديد يعني استثناءها من الأيام المخصومة واستحقاق يوم تعويضي على الموظف.
+                    </p>
+                </div>
+            </div>
+
+            <!-- أنواع الإجازات -->
+            <div class="stab-panel hidden" data-spanel="types">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">أنواع الإجازات</h3>
+
+                    <div class="flex flex-wrap items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="flex-grow min-w-[160px]">
+                            <label for="newTypeName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم النوع</label>
+                            <input type="text" id="newTypeName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        </div>
+                        <div>
+                            <label for="newTypeColor" class="block text-[11px] font-bold text-slate-600 mb-1">اللون</label>
+                            <input type="color" id="newTypeColor" value="#0284c7" class="h-9 w-14 border border-slate-300 rounded-lg">
+                        </div>
+                        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 pb-2.5">
+                            <input type="checkbox" id="newTypeHourly" class="accent-brand-600 w-4 h-4"> زمنية (ساعات)
+                        </label>
+                        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 pb-2.5">
+                            <input type="checkbox" id="newTypeDeducts" checked class="accent-brand-600 w-4 h-4"> تخصم من الرصيد
+                        </label>
+                        <button type="button" id="btnAddType" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-plus"></i> إضافة</button>
+                    </div>
+
+                    <input type="text" id="typeSearch" placeholder="بحث..." class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none w-full md:w-64">
+                    <div id="typeList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- الأقسام والشعب -->
+            <div class="stab-panel hidden" data-spanel="org">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">الأقسام والشعب</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="flex items-end gap-2">
+                            <div class="flex-grow">
+                                <label for="newDeptName" class="block text-[11px] font-bold text-slate-600 mb-1">قسم رئيسي جديد</label>
+                                <input type="text" id="newDeptName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                            </div>
+                            <button type="button" id="btnAddDept" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-plus"></i> إضافة قسم</button>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <div class="flex-grow">
+                                <label for="newSectionDept" class="block text-[11px] font-bold text-slate-600 mb-1">إضافة شعبة إلى</label>
+                                <select id="newSectionDept" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none"></select>
+                            </div>
+                            <div class="flex-grow">
+                                <label for="newSectionName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم الشعبة</label>
+                                <input type="text" id="newSectionName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                            </div>
+                            <button type="button" id="btnAddSection" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+
+                    <input type="text" id="deptSearch" placeholder="بحث في الأقسام والشعب..." class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none w-full md:w-64">
+                    <div id="deptList" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- الموظفون -->
+            <div class="stab-panel hidden" data-spanel="staff">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                        <h3 class="font-extrabold text-sm text-slate-800">دليل الموظفين</h3>
+                        <span class="text-[11px] font-bold text-slate-500" id="staffCount">0 موظف</span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="text" id="staffSearch" placeholder="بحث بالاسم أو الرقم الوظيفي أو القسم..." class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500 flex-grow min-w-[200px]">
+                        <button type="button" id="btnAddStaff" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> إضافة موظف</button>
+                        <button type="button" id="btnExportStaff" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> تصدير</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[11px] text-center border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold">
+                                    <th class="py-2 px-2 border border-slate-200 w-9">ت</th>
+                                    <th class="py-2 px-2 border border-slate-200 text-right">الاسم</th>
+                                    <th class="py-2 px-2 border border-slate-200 text-right">العنوان الوظيفي</th>
+                                    <th class="py-2 px-2 border border-slate-200">القسم / الشعبة</th>
+                                    <th class="py-2 px-2 border border-slate-200">الرقم الوظيفي</th>
+                                    <th class="py-2 px-2 border border-slate-200">الرصيد</th>
+                                    <th class="py-2 px-2 border border-slate-200">المستهلك</th>
+                                    <th class="py-2 px-2 border border-slate-200">المتبقي</th>
+                                    <th class="py-2 px-2 border border-slate-200">تعويضات</th>
+                                    <th class="py-2 px-2 border border-slate-200 w-20">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffList"></tbody>
+                        </table>
+                    </div>
+                    <div id="staffEmpty" class="hidden text-center py-8 text-slate-400 text-xs font-bold">لا يوجد موظفون في الدليل</div>
+                </div>
+            </div>
+
+            <!-- التخزين والنسخ الاحتياطي -->
+            <div class="stab-panel hidden" data-spanel="storage">
+                <div class="space-y-5">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                        <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">حالة التخزين</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                                <p class="text-slate-500 font-bold text-[11px] mb-1">التخزين المحلي (IndexedDB)</p>
+                                <p id="storageLocalStatus" class="font-bold text-slate-800">—</p>
+                            </div>
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                                <p class="text-slate-500 font-bold text-[11px] mb-1">مجلد البيانات على القرص</p>
+                                <p id="storageFolderStatus" class="font-bold text-slate-800">غير مرتبط</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" id="btnConnectFolder" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> اختيار مجلد البيانات</button>
+                            <button type="button" id="btnReconnectFolder" class="hidden bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-link"></i> إعادة تفعيل الاتصال</button>
+                            <button type="button" id="btnDisconnectFolder" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-link-slash"></i> فصل المجلد</button>
+                            <button type="button" id="btnBackupNow" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> نسخة احتياطية الآن</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500">
+                            في Chrome و Edge يمكن ربط مجلد على القرص فتُحفظ البيانات فيه تلقائياً مع نسخ احتياطية دوّارة.
+                            في Firefox لا يدعم المتصفح ذلك، لذا تُحفظ البيانات محلياً ويُنصح بالتصدير الدوري.
+                        </p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                        <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">تصدير واستيراد</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" id="btnExportJson" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية (JSON)</button>
+                            <button type="button" id="btnImportJson" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-upload"></i> استيراد ملف نسخة احتياطية</button>
+                            <button type="button" id="btnImportFolder" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-folder-tree"></i> استيراد من مجلد بيانات</button>
+                            <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden">
+                        </div>
+                        <p class="text-[10px] text-slate-500">ملفات النسخة القديمة (v3) مدعومة ويتم ترحيلها تلقائياً عند الاستيراد.</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                            <h3 class="font-extrabold text-sm text-slate-800">النسخ الاحتياطية في المجلد</h3>
+                            <button type="button" id="btnRefreshBackups" class="text-[11px] font-bold text-brand-700"><i class="fa-solid fa-rotate"></i> تحديث</button>
+                        </div>
+                        <div id="backupList" class="space-y-2 text-xs"></div>
+                    </div>
+
+                    <div class="bg-rose-50 rounded-2xl border border-rose-200 p-5 space-y-3">
+                        <h3 class="font-extrabold text-sm text-rose-900 border-b border-rose-200 pb-2">منطقة الخطر</h3>
+                        <p class="text-[11px] text-rose-800">تصفير النظام يحذف كل البيانات نهائياً من هذا المتصفح (والمجلد المرتبط). صدّر نسخة احتياطية أولاً.</p>
+                        <button type="button" id="btnResetFactory" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> تصفير النظام بالكامل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- سجل التدقيق -->
+            <div class="stab-panel hidden" data-spanel="audit">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                        <h3 class="font-extrabold text-sm text-slate-800">سجل التدقيق</h3>
+                        <span class="text-[11px] font-bold text-slate-500" id="auditCount">0 عملية</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="text" id="auditSearch" placeholder="بحث..." class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none min-w-[160px]">
+                        <select id="auditActionFilter" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                            <option value="">جميع العمليات</option>
+                            <option value="insert">إضافة</option>
+                            <option value="update">تعديل</option>
+                            <option value="delete">حذف</option>
+                            <option value="override">تجاوز تعارض</option>
+                            <option value="settle">تسديد تعويض</option>
+                            <option value="system">عمليات نظام</option>
+                        </select>
+                        <input type="date" id="auditFrom" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        <input type="date" id="auditTo" class="border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                        <button type="button" id="btnClearAudit" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-broom"></i> تفريغ السجل</button>
+                    </div>
+                    <div class="overflow-x-auto scroll-y-60">
+                        <table class="w-full text-[11px] text-center border-collapse">
+                            <thead class="sticky top-0">
+                                <tr class="bg-slate-100 text-slate-700 font-bold">
+                                    <th class="py-2 px-2 border border-slate-200">الوقت</th>
+                                    <th class="py-2 px-2 border border-slate-200">العملية</th>
+                                    <th class="py-2 px-2 border border-slate-200 text-right">التفاصيل</th>
+                                    <th class="py-2 px-2 border border-slate-200">المستخدم</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- حول النظام -->
+            <div class="stab-panel hidden" data-spanel="about">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3 text-xs text-slate-700">
+                    <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">حول النظام</h3>
+                    <div id="aboutInfo" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    <div class="border-t border-slate-200 pt-3">
+                        <h4 class="font-bold text-slate-800 mb-2">قدرات المتصفح الحالي</h4>
+                        <div id="browserCaps" class="space-y-1"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- تذييل يتكرر في كل صفحة مطبوعة -->
+    <div class="print-footer print-only" id="printFooter">
+        <span id="printFooterText">نظام موقف الإجازات اليومية</span>
     </div>
 
-    <script>
-        // Storage Keys
-        const SETTINGS_KEY = 'hosp_leave_settings_v3';
-        const LEAVES_KEY = 'hosp_leave_records_v3';
-        const DEPTS_KEY = 'hosp_leave_depts_v3';
-        const STAFF_KEY = 'hosp_leave_staff_v3';
-        const TYPES_KEY = 'hosp_leave_types_v3';
-
-        // Settings State Data
-        let settings = {
-            ministry: 'وزارة الصحة',
-            directorate: 'دائرة صحة بغداد / الرصافة',
-            hospital: 'مستشفى الكندي التعليمي',
-            departmentUnit: 'شعبة الموارد البشرية - وحدة الإجازات',
-            footerHR: 'مسؤول الموارد البشرية',
-            footerManager: 'مدير المستشفى',
-            logoBase64: ''
-        };
-
-        // Leave Types Initial Array
-        let leaveTypes = [
-            'إجازة اعتيادية',
-            'إجازة زمنية',
-            'إجازة مرضية',
-            'إجازة أمومة',
-            'إجازة دراسية',
-            'إجازة إجبارية',
-            'إفاد / مهمة رسمية'
-        ];
-
-        let departments = [
-            { name: 'شعبة الطوارئ', sections: ['وحدة الإنعاش', 'وحدة الملاحظة'] },
-            { name: 'قسم العناية المركزة', sections: ['العناية الجراحية', 'العناية الباطنية'] },
-            { name: 'قسم الباطنية', sections: ['شعبة الباطنية أ', 'شعبة الباطنية ب'] },
-            { name: 'قسم الجراحة العامة', sections: ['شعبة الجراحة', 'جراحة اليوم الواحد'] },
-            { name: 'قسم العمليات', sections: ['صالة العمليات الكبرى', 'التعقيم المركزي'] },
-            { name: 'قسم الخدمات الإدارية', sections: ['شعبة الموارد البشرية', 'شعبة الحسابات', 'شعبة الصيانة'] }
-        ];
-
-        let staffList = [
-            { name: 'د. علي حسين كاظم', jobTitle: 'طبيب اختصاص باطنية', dept: 'قسم الباطنية' },
-            { name: 'م.م مروة جاسم محمد', jobTitle: 'ممرض جامعي', dept: 'شعبة الطوارئ' },
-            { name: 'أحمد جبار عبد', jobTitle: 'ملاحظ إداري', dept: 'قسم الخدمات الإدارية' }
-        ];
-
-        let leavesList = [];
-
-        // Application Startup
-        window.onload = function() {
-            loadAllData();
-            
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('dashboardFilterDate').value = today;
-            document.getElementById('entryLeaveDate').value = today;
-            document.getElementById('entryFromDate').value = today;
-            
-            // Auto calculate initial end date
-            onFromDateOrDaysChange();
-
-            applySettingsUI();
-            populateDropdowns();
-            renderDashboardTable();
-            renderDepartmentsList();
-            renderStaffList();
-            renderLeaveTypesList();
-        };
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-
-            if (tabId === 'dashboard') {
-                renderDashboardTable();
-            }
-        }
-
-        function loadAllData() {
-            const savedSettings = localStorage.getItem(SETTINGS_KEY);
-            if (savedSettings) settings = JSON.parse(savedSettings);
-
-            const savedDepts = localStorage.getItem(DEPTS_KEY);
-            if (savedDepts) departments = JSON.parse(savedDepts);
-
-            const savedStaff = localStorage.getItem(STAFF_KEY);
-            if (savedStaff) staffList = JSON.parse(savedStaff);
-
-            const savedTypes = localStorage.getItem(TYPES_KEY);
-            if (savedTypes) leaveTypes = JSON.parse(savedTypes);
-
-            const savedLeaves = localStorage.getItem(LEAVES_KEY);
-            if (savedLeaves) {
-                leavesList = JSON.parse(savedLeaves);
-            } else {
-                // Initial demo records
-                const today = new Date().toISOString().split('T')[0];
-                leavesList = [
-                    {
-                        id: '1',
-                        empName: 'د. علي حسين كاظم',
-                        jobTitle: 'طبيب اختصاص باطنية',
-                        dept: 'قسم الباطنية',
-                        section: 'شعبة الباطنية أ',
-                        leaveType: 'إجازة اعتيادية',
-                        fromDate: today,
-                        toDate: today,
-                        daysCount: 1,
-                        hoursCount: '',
-                        fromTime: '',
-                        toTime: '',
-                        notes: 'ظرف عائلي طارئ'
-                    },
-                    {
-                        id: '2',
-                        empName: 'م.م مروة جاسم محمد',
-                        jobTitle: 'ممرض جامعي',
-                        dept: 'شعبة الطوارئ',
-                        section: 'وحدة الإنعاش',
-                        leaveType: 'إجازة زمنية',
-                        fromDate: today,
-                        toDate: today,
-                        daysCount: '',
-                        hoursCount: 3,
-                        fromTime: '09:00',
-                        toTime: '12:00',
-                        notes: 'مراجعة دائرة رسمية'
-                    }
-                ];
-                saveLeaves();
-            }
-        }
-
-        function saveLeaves() {
-            localStorage.setItem(LEAVES_KEY, JSON.stringify(leavesList));
-        }
-
-        function applySettingsUI() {
-            document.getElementById('navHospitalName').innerText = settings.hospital || 'المستشفى العام';
-            document.getElementById('navDeptName').innerText = settings.departmentUnit || 'شعبة الموارد البشرية';
-
-            document.getElementById('rptMinistry').innerText = settings.ministry || '';
-            document.getElementById('rptDirectorate').innerText = settings.directorate || '';
-            document.getElementById('rptHospital').innerText = settings.hospital || '';
-            document.getElementById('rptDepartmentUnit').innerText = settings.departmentUnit || '';
-            document.getElementById('rptFooterHR').innerText = settings.footerHR || 'مسؤول الموارد البشرية';
-            document.getElementById('rptFooterManager').innerText = settings.footerManager || 'مدير المستشفى';
-
-            document.getElementById('setMinistry').value = settings.ministry || '';
-            document.getElementById('setDirectorate').value = settings.directorate || '';
-            document.getElementById('setHospital').value = settings.hospital || '';
-            document.getElementById('setDepartmentUnit').value = settings.departmentUnit || '';
-            document.getElementById('setFooterHR').value = settings.footerHR || '';
-            document.getElementById('setFooterManager').value = settings.footerManager || '';
-
-            if (settings.logoBase64) {
-                document.getElementById('navLogoImg').src = settings.logoBase64;
-                document.getElementById('navLogoImg').classList.remove('hidden');
-                document.getElementById('navLogoDefault').classList.add('hidden');
-
-                document.getElementById('rptLogoImg').src = settings.logoBase64;
-                document.getElementById('rptLogoImg').classList.remove('hidden');
-                document.getElementById('rptLogoDefault').classList.add('hidden');
-
-                document.getElementById('logoPreviewImg').src = settings.logoBase64;
-                document.getElementById('logoPreviewImg').classList.remove('hidden');
-                document.getElementById('logoPreviewPlaceholder').classList.add('hidden');
-                document.getElementById('removeLogoBtn').classList.remove('hidden');
-            } else {
-                document.getElementById('navLogoImg').classList.add('hidden');
-                document.getElementById('navLogoDefault').classList.remove('hidden');
-
-                document.getElementById('rptLogoImg').classList.add('hidden');
-                document.getElementById('rptLogoDefault').classList.remove('hidden');
-
-                document.getElementById('logoPreviewImg').classList.add('hidden');
-                document.getElementById('logoPreviewPlaceholder').classList.remove('hidden');
-                document.getElementById('removeLogoBtn').classList.add('hidden');
-            }
-        }
-
-        function saveHeaderSettings() {
-            settings.ministry = document.getElementById('setMinistry').value.trim();
-            settings.directorate = document.getElementById('setDirectorate').value.trim();
-            settings.hospital = document.getElementById('setHospital').value.trim();
-            settings.departmentUnit = document.getElementById('setDepartmentUnit').value.trim();
-            settings.footerHR = document.getElementById('setFooterHR').value.trim();
-            settings.footerManager = document.getElementById('setFooterManager').value.trim();
-
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-            applySettingsUI();
-            alert('تم حفظ بيانات الترويسة بنجاح!');
-        }
-
-        function onFromDateOrDaysChange() {
-            const fromStr = document.getElementById('entryFromDate').value;
-            const daysCount = parseInt(document.getElementById('entryDaysCount').value) || 1;
-
-            if (!fromStr) return;
-
-            const fromDate = new Date(fromStr);
-            fromDate.setDate(fromDate.getDate() + (daysCount - 1));
-
-            const toStr = fromDate.toISOString().split('T')[0];
-            document.getElementById('entryToDate').value = toStr;
-        }
-
-        function onToDateChange() {
-            const fromStr = document.getElementById('entryFromDate').value;
-            const toStr = document.getElementById('entryToDate').value;
-
-            if (!fromStr || !toStr) return;
-
-            const fromDate = new Date(fromStr);
-            const toDate = new Date(toStr);
-
-            if (toDate < fromDate) {
-                alert('تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ بداية الإجازة.');
-                document.getElementById('entryToDate').value = fromStr;
-                document.getElementById('entryDaysCount').value = 1;
-                return;
-            }
-
-            const diffTime = Math.abs(toDate - fromDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-            document.getElementById('entryDaysCount').value = diffDays;
-        }
-
-        function populateDropdowns() {
-            // Departments
-            const filterDept = document.getElementById('filterDept');
-            const entryDept = document.getElementById('entryDept');
-            const curFilterDept = filterDept.value;
-            const curEntryDept = entryDept.value;
-
-            filterDept.innerHTML = '<option value="">جميع الأقسام</option>';
-            entryDept.innerHTML = '<option value="" disabled selected>اختر القسم...</option>';
-
-            departments.forEach(d => {
-                filterDept.innerHTML += `<option value="${d.name}">${d.name}</option>`;
-                entryDept.innerHTML += `<option value="${d.name}">${d.name}</option>`;
-            });
-
-            filterDept.value = curFilterDept;
-            entryDept.value = curEntryDept;
-
-            // Leave Types
-            const filterType = document.getElementById('filterLeaveType');
-            const entryType = document.getElementById('entryType');
-            const curFilterType = filterType.value;
-            const curEntryType = entryType.value;
-
-            filterType.innerHTML = '<option value="">جميع أنواع الإجازات</option>';
-            entryType.innerHTML = '';
-
-            leaveTypes.forEach(t => {
-                filterType.innerHTML += `<option value="${t}">${t}</option>`;
-                entryType.innerHTML += `<option value="${t}">${t}</option>`;
-            });
-
-            filterType.value = curFilterType;
-            entryType.value = curEntryType || (leaveTypes[0] || '');
-
-            toggleFormFields();
-        }
-
-        function toggleFormFields() {
-            const selectedType = document.getElementById('entryType').value;
-            const daysContainer = document.getElementById('daysRangeContainer');
-            const timeBox = document.getElementById('timeRangeBox');
-
-            if (selectedType === 'إجازة زمنية') {
-                daysContainer.classList.add('hidden');
-                timeBox.classList.remove('hidden');
-            } else {
-                daysContainer.classList.remove('hidden');
-                timeBox.classList.add('hidden');
-            }
-        }
-
-        function addLeaveType() {
-            const name = document.getElementById('newLeaveTypeName').value.trim();
-            if (!name) {
-                alert('يرجى كتابة اسم نوع الإجازة.');
-                return;
-            }
-
-            if (leaveTypes.includes(name)) {
-                alert('نوع الإجازة هذا موجود بالفعل.');
-                return;
-            }
-
-            leaveTypes.push(name);
-            localStorage.setItem(TYPES_KEY, JSON.stringify(leaveTypes));
-            document.getElementById('newLeaveTypeName').value = '';
-
-            populateDropdowns();
-            renderLeaveTypesList();
-        }
-
-        function deleteLeaveType(index) {
-            if (leaveTypes.length <= 1) {
-                alert('يجب أن يتبقى نوع إجازة واحد على الأقل بالنظام.');
-                return;
-            }
-
-            if (confirm(`هل أنت ألمتأكد من حذف نوع الإجازة "${leaveTypes[index]}"؟`)) {
-                leaveTypes.splice(index, 1);
-                localStorage.setItem(TYPES_KEY, JSON.stringify(leaveTypes));
-                populateDropdowns();
-                renderLeaveTypesList();
-            }
-        }
-
-        function renderLeaveTypesList() {
-            const container = document.getElementById('leaveTypesListContainer');
-            container.innerHTML = '';
-
-            leaveTypes.forEach((type, idx) => {
-                const el = document.createElement('div');
-                el.className = 'flex justify-between items-center text-xs bg-slate-50 p-2 rounded-xl border border-slate-200';
-                el.innerHTML = `
-                    <span class="font-bold text-slate-800"><i class="fa-solid fa-tag text-teal-600 ml-1.5"></i>${type}</span>
-                    <button onclick="deleteLeaveType(${idx})" class="text-rose-500 hover:text-rose-700 p-1" title="حذف">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                `;
-                container.appendChild(el);
-            });
-        }
-
-        function updateSectionDropdown() {
-            const selectedDept = document.getElementById('entryDept').value;
-            const sectionSelect = document.getElementById('entrySection');
-            sectionSelect.innerHTML = '<option value="">بدون شعبة / لا يوجد</option>';
-
-            const deptObj = departments.find(d => d.name === selectedDept);
-            if (deptObj && deptObj.sections) {
-                deptObj.sections.forEach(sec => {
-                    sectionSelect.innerHTML += `<option value="${sec}">${sec}</option>`;
-                });
-            }
-        }
-
-        function addDepartmentOrSection() {
-            const deptName = document.getElementById('newDeptName').value.trim();
-            const secName = document.getElementById('newSectionName').value.trim();
-
-            if (!deptName) {
-                alert('يرجى كتابة اسم القسم الرئيسي على الأقل.');
-                return;
-            }
-
-            let existing = departments.find(d => d.name === deptName);
-            if (existing) {
-                if (secName && !existing.sections.includes(secName)) {
-                    existing.sections.push(secName);
-                }
-            } else {
-                departments.push({
-                    name: deptName,
-                    sections: secName ? [secName] : []
-                });
-            }
-
-            localStorage.setItem(DEPTS_KEY, JSON.stringify(departments));
-            document.getElementById('newDeptName').value = '';
-            document.getElementById('newSectionName').value = '';
-
-            populateDropdowns();
-            renderDepartmentsList();
-        }
-
-        function deleteDepartment(idx) {
-            if (confirm('هل أنت ألمتأكد من حذف هذا القسم بجميع شعبه؟')) {
-                departments.splice(idx, 1);
-                localStorage.setItem(DEPTS_KEY, JSON.stringify(departments));
-                populateDropdowns();
-                renderDepartmentsList();
-            }
-        }
-
-        function renderDepartmentsList() {
-            const container = document.getElementById('departmentsListContainer');
-            container.innerHTML = '';
-
-            departments.forEach((dept, idx) => {
-                const item = document.createElement('div');
-                item.className = 'bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs flex justify-between items-center';
-                
-                const sectionsText = dept.sections && dept.sections.length > 0 ? 
-                    dept.sections.map(s => `<span class="bg-white px-2 py-0.5 rounded border border-slate-200 text-[10px] text-slate-600">${s}</span>`).join(' ') : 
-                    '<span class="text-slate-400 text-[10px]">لا توجد شعب فرعية</span>';
-
-                item.innerHTML = `
-                    <div class="space-y-1">
-                        <p class="font-bold text-slate-800">${dept.name}</p>
-                        <div class="flex flex-wrap gap-1">${sectionsText}</div>
-                    </div>
-                    <button onclick="deleteDepartment(${idx})" class="text-rose-500 hover:text-rose-700 p-1 font-bold">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        function addQuickStaff() {
-            const name = document.getElementById('quickStaffName').value.trim();
-            const jobTitle = document.getElementById('quickStaffTitle').value.trim();
-
-            if (!name || !jobTitle) {
-                alert('يرجى إدخال اسم الموظف والعنوان الوظيفي.');
-                return;
-            }
-
-            updateOrAddStaffDirectory(name, jobTitle, '');
-            document.getElementById('quickStaffName').value = '';
-            document.getElementById('quickStaffTitle').value = '';
-        }
-
-        function updateOrAddStaffDirectory(name, jobTitle, dept) {
-            const existingIdx = staffList.findIndex(s => s.name === name);
-            if (existingIdx !== -1) {
-                staffList[existingIdx].jobTitle = jobTitle;
-                if (dept) staffList[existingIdx].dept = dept;
-            } else {
-                staffList.unshift({ name, jobTitle, dept });
-            }
-            localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
-            renderStaffList();
-        }
-
-        function deleteStaff(index) {
-            staffList.splice(index, 1);
-            localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
-            renderStaffList();
-        }
-
-        function renderStaffList() {
-            const container = document.getElementById('staffListContainer');
-            document.getElementById('staffCountBadge').innerText = `${staffList.length} موظف`;
-            container.innerHTML = '';
-
-            staffList.forEach((st, idx) => {
-                const el = document.createElement('div');
-                el.className = 'flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100';
-                el.innerHTML = `
-                    <div>
-                        <p class="font-bold text-slate-800">${st.name}</p>
-                        <p class="text-[10px] text-slate-500">${st.jobTitle} ${st.dept ? ' - ' + st.dept : ''}</p>
-                    </div>
-                    <button onclick="deleteStaff(${idx})" class="text-rose-500 hover:text-rose-700 p-1 text-xs">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                `;
-                container.appendChild(el);
-            });
-        }
-
-        function handleEmployeeSearch(val) {
-            const sugBox = document.getElementById('empSuggestions');
-            if (!val.trim()) {
-                sugBox.classList.add('hidden');
-                return;
-            }
-
-            const matches = staffList.filter(s => s.name.toLowerCase().includes(val.toLowerCase()));
-            if (matches.length === 0) {
-                sugBox.classList.add('hidden');
-                return;
-            }
-
-            sugBox.innerHTML = '';
-            matches.forEach(m => {
-                const item = document.createElement('div');
-                item.className = 'p-2 hover:bg-brand-50 cursor-pointer text-xs transition';
-                item.innerHTML = `
-                    <p class="font-bold text-slate-800">${m.name}</p>
-                    <p class="text-[10px] text-slate-500">${m.jobTitle}</p>
-                `;
-                item.onclick = function() {
-                    document.getElementById('entryEmpName').value = m.name;
-                    document.getElementById('entryJobTitle').value = m.jobTitle;
-                    if (m.dept) {
-                        document.getElementById('entryDept').value = m.dept;
-                        updateSectionDropdown();
-                    }
-                    sugBox.classList.add('hidden');
-                };
-                sugBox.appendChild(item);
-            });
-            sugBox.classList.remove('hidden');
-        }
-
-        function resetEntryForm() {
-            document.getElementById('leaveEntryForm').reset();
-            document.getElementById('entryEditId').value = '';
-            
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('entryLeaveDate').value = today;
-            document.getElementById('entryFromDate').value = today;
-            
-            onFromDateOrDaysChange();
-
-            document.getElementById('entryFormTitle').innerText = 'إضافة إجازة جديدة للموقف';
-            document.getElementById('saveLeaveBtn').innerHTML = '<i class="fa-solid fa-check"></i> حفظ الموقف اليومي';
-            toggleFormFields();
-        }
-
-        function handleSaveLeave(e) {
-            e.preventDefault();
-
-            const editId = document.getElementById('entryEditId').value;
-            const empName = document.getElementById('entryEmpName').value.trim();
-            const jobTitle = document.getElementById('entryJobTitle').value.trim();
-            const dept = document.getElementById('entryDept').value;
-            const section = document.getElementById('entrySection').value;
-            const leaveType = document.getElementById('entryType').value;
-            const notes = document.getElementById('entryNotes').value.trim();
-
-            let fromDate = '', toDate = '', daysCount = '';
-            let hoursCount = '', fromTime = '', toTime = '';
-
-            if (leaveType === 'إجازة زمنية') {
-                fromDate = document.getElementById('entryLeaveDate').value;
-                toDate = document.getElementById('entryLeaveDate').value;
-                hoursCount = document.getElementById('entryHoursCount').value;
-                fromTime = document.getElementById('entryFromTime').value;
-                toTime = document.getElementById('entryToTime').value;
-            } else {
-                fromDate = document.getElementById('entryFromDate').value;
-                toDate = document.getElementById('entryToDate').value;
-                daysCount = document.getElementById('entryDaysCount').value;
-            }
-
-            const record = {
-                id: editId || Date.now().toString(),
-                empName,
-                jobTitle,
-                dept,
-                section,
-                leaveType,
-                fromDate,
-                toDate,
-                daysCount,
-                hoursCount,
-                fromTime,
-                toTime,
-                notes
-            };
-
-            if (editId) {
-                const idx = leavesList.findIndex(l => l.id === editId);
-                if (idx !== -1) leavesList[idx] = record;
-            } else {
-                leavesList.unshift(record);
-            }
-
-            updateOrAddStaffDirectory(empName, jobTitle, dept);
-
-            saveLeaves();
-            resetEntryForm();
-            switchTab('dashboard');
-        }
-
-        function editLeaveRecord(id) {
-            const record = leavesList.find(l => l.id === id);
-            if (!record) return;
-
-            switchTab('entry');
-
-            document.getElementById('entryEditId').value = record.id;
-            document.getElementById('entryEmpName').value = record.empName;
-            document.getElementById('entryJobTitle').value = record.jobTitle;
-            document.getElementById('entryDept').value = record.dept;
-            updateSectionDropdown();
-            document.getElementById('entrySection').value = record.section || '';
-            document.getElementById('entryType').value = record.leaveType;
-            document.getElementById('entryNotes').value = record.notes || '';
-
-            toggleFormFields();
-
-            if (record.leaveType === 'إجازة زمنية') {
-                document.getElementById('entryLeaveDate').value = record.fromDate || record.toDate;
-                document.getElementById('entryHoursCount').value = record.hoursCount || 2;
-                document.getElementById('entryFromTime').value = record.fromTime || '09:00';
-                document.getElementById('entryToTime').value = record.toTime || '11:00';
-            } else {
-                document.getElementById('entryFromDate').value = record.fromDate;
-                document.getElementById('entryToDate').value = record.toDate;
-                document.getElementById('entryDaysCount').value = record.daysCount;
-            }
-
-            document.getElementById('entryFormTitle').innerText = 'تعديل بيانات الإجازة';
-            document.getElementById('saveLeaveBtn').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> تحديث الإجازة';
-        }
-
-        function deleteLeaveRecord(id) {
-            if (confirm('هل أنت ألمتأكد من حذف هذا السجل من الموقف اليومي؟')) {
-                leavesList = leavesList.filter(l => l.id !== id);
-                saveLeaves();
-                renderDashboardTable();
-            }
-        }
-
-        function onDashboardDateChange() {
-            renderDashboardTable();
-        }
-
-        function renderDashboardTable() {
-            const selectedDate = document.getElementById('dashboardFilterDate').value;
-            const filterDept = document.getElementById('filterDept').value;
-            const filterType = document.getElementById('filterLeaveType').value;
-            const searchKeyword = document.getElementById('searchKeyword').value.toLowerCase().trim();
-
-            document.getElementById('rptDate').innerText = selectedDate;
-            document.getElementById('rptCreatedDate').innerText = new Date().toLocaleDateString('ar-IQ');
-
-            const tbody = document.getElementById('dashboardTableBody');
-            const noDataState = document.getElementById('noDataState');
-
-            tbody.innerHTML = '';
-
-            let filtered = leavesList.filter(l => {
-                let matchesDate = false;
-
-                if (l.fromDate && l.toDate) {
-                    matchesDate = (selectedDate >= l.fromDate && selectedDate <= l.toDate);
-                } else if (l.fromDate) {
-                    matchesDate = (selectedDate === l.fromDate);
-                }
-
-                const matchesDept = !filterDept || l.dept === filterDept;
-                const matchesType = !filterType || l.leaveType === filterType;
-                const matchesSearch = !searchKeyword || 
-                    l.empName.toLowerCase().includes(searchKeyword) || 
-                    l.jobTitle.toLowerCase().includes(searchKeyword);
-
-                return matchesDate && matchesDept && matchesType && matchesSearch;
-            });
-
-            let casual = 0, hourly = 0, other = 0;
-
-            if (filtered.length === 0) {
-                noDataState.classList.remove('hidden');
-            } else {
-                noDataState.classList.add('hidden');
-
-                filtered.forEach((item, index) => {
-                    if (item.leaveType === 'إجازة اعتيادية') casual++;
-                    else if (item.leaveType === 'إجازة زمنية') hourly++;
-                    else other++;
-
-                    let durationHTML = '';
-                    let badgeColor = 'bg-slate-100 text-slate-800 border-slate-200';
-
-                    if (item.leaveType === 'إجازة زمنية') {
-                        badgeColor = 'bg-amber-50 text-amber-800 border-amber-200';
-                        durationHTML = `
-                            <div class="font-bold text-amber-900">${item.hoursCount} ساعات</div>
-                            <div class="text-[10px] text-amber-700 font-medium">من ${item.fromTime || '--'} إلى ${item.toTime || '--'}</div>
-                        `;
-                    } else {
-                        if (item.leaveType === 'إجازة اعتيادية') badgeColor = 'bg-sky-50 text-sky-800 border-sky-200';
-                        else badgeColor = 'bg-purple-50 text-purple-800 border-purple-200';
-                        
-                        durationHTML = `
-                            <div class="font-bold text-slate-900">${item.daysCount || 1} يوم</div>
-                            <div class="text-[10px] text-slate-500 font-medium">${item.fromDate || '--'} إلى ${item.toDate || '--'}</div>
-                        `;
-                    }
-
-                    const deptDisplay = item.section ? `${item.dept} - <span class="text-slate-500">${item.section}</span>` : item.dept;
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-slate-50/80 transition text-slate-800';
-                    tr.innerHTML = `
-                        <td class="py-2.5 px-2 border border-slate-300 font-bold">${index + 1}</td>
-                        <td class="py-2.5 px-3 border border-slate-300 text-right font-bold text-slate-900">${item.empName}</td>
-                        <td class="py-2.5 px-2 border border-slate-300 text-right font-medium text-slate-700">${item.jobTitle}</td>
-                        <td class="py-2.5 px-2 border border-slate-300 text-center">${deptDisplay}</td>
-                        <td class="py-2.5 px-2 border border-slate-300">
-                            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">
-                                ${item.leaveType}
-                            </span>
-                        </td>
-                        <td class="py-2.5 px-3 border border-slate-300 text-center">${durationHTML}</td>
-                        <td class="py-2.5 px-3 border border-slate-300 text-right text-slate-600 text-xs">${item.notes || '-'}</td>
-                        <td class="py-2.5 px-2 border border-slate-300 no-print">
-                            <div class="flex items-center justify-center gap-1">
-                                <button onclick="editLeaveRecord('${item.id}')" class="text-brand-600 hover:text-brand-800 p-1 text-xs" title="تعديل">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button onclick="deleteLeaveRecord('${item.id}')" class="text-rose-600 hover:text-rose-800 p-1 text-xs" title="حذف">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-
-            // Stats Update
-            document.getElementById('statTotal').innerText = filtered.length;
-            document.getElementById('statCasual').innerText = casual;
-            document.getElementById('statHourly').innerText = hourly;
-            document.getElementById('statOther').innerText = other;
-        }
-
-        function exportToExcel() {
-            const selectedDate = document.getElementById('dashboardFilterDate').value;
-            const table = document.getElementById('dashboardTable');
-
-            const clone = table.cloneNode(true);
-            const rows = clone.querySelectorAll('tr');
-            rows.forEach(r => {
-                if (r.cells.length > 7) r.deleteCell(7); // Delete actions column
-            });
-
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.table_to_sheet(clone);
-
-            XLSX.utils.book_append_sheet(wb, ws, "موقف الإجازات");
-            XLSX.writeFile(wb, `موقف_الإجازات_${settings.hospital || 'المستشفى'}_${selectedDate}.xlsx`);
-        }
-
-        // Direct PDF File Export via html2pdf.js
-        function exportToPDF() {
-            const selectedDate = document.getElementById('dashboardFilterDate').value || new Date().toISOString().split('T')[0];
-            const element = document.getElementById('printableArea');
-
-            // Temporarily hide no-print elements for PDF rendering
-            const noPrintElements = element.querySelectorAll('.no-print');
-            noPrintElements.forEach(el => el.style.display = 'none');
-
-            const opt = {
-                margin:       [8, 8, 10, 8],
-                filename:     `موقف_الإجازات_اليومي_${selectedDate}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            // Directly download the generated PDF
-            html2pdf().set(opt).from(element).save().then(() => {
-                noPrintElements.forEach(el => el.style.display = '');
-            }).catch(err => {
-                console.error("PDF Export error:", err);
-                noPrintElements.forEach(el => el.style.display = '');
-            });
-        }
-
-        // Print Trigger for Browser Dialog
-        function triggerPrint() {
-            window.print();
-        }
-
-        function handleLogoUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (file.size > 2 * 1024 * 1024) {
-                alert('حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 2 ميجابايت.');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                settings.logoBase64 = e.target.result;
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-                applySettingsUI();
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function removeLogo() {
-            if (confirm('هل أنت ألمتأكد من حذف الشعار؟')) {
-                settings.logoBase64 = '';
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-                document.getElementById('logoInput').value = '';
-                applySettingsUI();
-            }
-        }
-
-        function exportBackupJSON() {
-            const backupObj = {
-                settings,
-                departments,
-                staffList,
-                leaveTypes,
-                leavesList,
-                exportDate: new Date().toISOString()
-            };
-
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
-            const anchor = document.createElement('a');
-            anchor.setAttribute("href", dataStr);
-            anchor.setAttribute("download", `نسخة_احتياطية_موقف_الإجازات_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-        }
-
-        function importBackupJSON(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const parsed = JSON.parse(event.target.result);
-                    if (parsed.settings) settings = parsed.settings;
-                    if (parsed.departments) departments = parsed.departments;
-                    if (parsed.staffList) staffList = parsed.staffList;
-                    if (parsed.leaveTypes) leaveTypes = parsed.leaveTypes;
-                    if (parsed.leavesList) leavesList = parsed.leavesList;
-
-                    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-                    localStorage.setItem(DEPTS_KEY, JSON.stringify(departments));
-                    localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
-                    localStorage.setItem(TYPES_KEY, JSON.stringify(leaveTypes));
-                    localStorage.setItem(LEAVES_KEY, JSON.stringify(leavesList));
-
-                    applySettingsUI();
-                    populateDropdowns();
-                    renderDepartmentsList();
-                    renderStaffList();
-                    renderLeaveTypesList();
-                    renderDashboardTable();
-
-                    alert('تم استرجاع كافة البيانات بنجاح!');
-                } catch (err) {
-                    alert('خطأ في تنسيق ملف JSON. يرجى التاكد من سلامة الملف.');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function resetFactorySettings() {
-            if (confirm('تنبيه هام: هل أنت متأكد من مسح جميع البيانات والعودة لضبط المصنع؟')) {
-                localStorage.clear();
-                location.reload();
-            }
-        }
-    </script>
+    <div id="toastHost"></div>
+
+    <!-- ==================== المكتبات المحلية ==================== -->
+    <script src="assets/js/xlsx.full.min.js"></script>
+    <script src="assets/js/html2pdf.bundle.min.js"></script>
+    <script src="assets/js/chart.umd.min.js"></script>
+
+    <!-- ==================== نواة النظام ==================== -->
+    <script src="src/js/constants.js"></script>
+    <script src="src/js/core/security.js"></script>
+    <script src="src/js/core/notify.js"></script>
+    <script src="src/js/core/dateUtils.js"></script>
+    <script src="src/js/core/idb.js"></script>
+    <script src="src/js/core/fsa.js"></script>
+    <script src="src/js/core/store.js"></script>
+    <script src="src/js/core/audit.js"></script>
+
+    <!-- ==================== الأدوات ==================== -->
+    <script src="src/js/utils/exporters.js"></script>
+    <script src="src/js/utils/pagination.js"></script>
+
+    <!-- ==================== الوحدات ==================== -->
+    <script src="src/js/modules/org.js"></script>
+    <script src="src/js/modules/leaveTypes.js"></script>
+    <script src="src/js/modules/staff.js"></script>
+    <script src="src/js/modules/holidays.js"></script>
+    <script src="src/js/modules/settings.js"></script>
+    <script src="src/js/modules/conflicts.js"></script>
+    <script src="src/js/modules/entry.js"></script>
+    <script src="src/js/modules/dashboard.js"></script>
+    <script src="src/js/modules/reports.js"></script>
+    <script src="src/js/modules/analytics.js"></script>
+    <script src="src/js/modules/auditView.js"></script>
+
+    <!-- ==================== نقطة الانطلاق ==================== -->
+    <script src="src/js/app.js"></script>
 </body>
+
 </html>

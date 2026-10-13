@@ -1,12 +1,15 @@
 # تبعيات البناء (لا حاجة لها في التسليم النهائي)
 node_modules/
+tools/node_modules/
 package-lock.json
+tools/package-lock.json
 
-# نسخ احتياطية محلية
+# نسخ ومخرجات مؤقتة
 _backup/
+_screenshots/
+_downloads/
+_smoke*
+_diag*
+_diag-*.json
 *.bak
 *.tmp
-
-# ملفات تجريبية
-_env-test.html
-_screenshots/

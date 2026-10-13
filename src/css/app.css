@@ -1,0 +1,280 @@
+/* ============================================================
+   نظام موقف الإجازات اليومية — الأنماط المخصصة
+   Tailwind يعالج التخطيط، وهذا الملف للأنماط الخاصة والطباعة
+   ============================================================ */
+
+:root {
+    --brand-500: #0284c7;
+    --brand-700: #075985;
+    --brand-900: #0c4a6e;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+/* الأرقام بعرض ثابت لمحاذاة الجداول */
+.tnum,
+table td,
+table th {
+    font-variant-numeric: tabular-nums;
+}
+
+/* شرائط التمرير */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ===================== التبويبات ===================== */
+.tab-btn.active {
+    border-bottom: 3px solid #22d3ee;
+    color: #fff;
+    font-weight: 700;
+    background-color: rgba(255, 255, 255, .12);
+}
+
+.tab-view { animation: viewIn .18s ease-out; }
+@keyframes viewIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ===================== النوافذ المنبثقة ===================== */
+.app-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .55);
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity .16s ease;
+}
+.app-modal-backdrop.show { opacity: 1; }
+
+.app-modal {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, .4);
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(10px) scale(.985);
+    transition: transform .16s ease;
+}
+.app-modal-backdrop.show .app-modal { transform: none; }
+.app-modal.wide { max-width: 980px; }
+
+.app-modal-body {
+    overflow-y: auto;
+    padding: 1.25rem;
+    flex: 1;
+}
+
+/* ===================== التنبيهات السريعة ===================== */
+#toastHost {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    pointer-events: none;
+    max-width: min(420px, 92vw);
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    background: #fff;
+    border-radius: .75rem;
+    padding: .7rem .9rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, .25);
+    border-right: 4px solid var(--brand-500);
+    animation: toastIn .2s ease-out;
+    font-size: .82rem;
+    font-weight: 600;
+}
+.toast.hide { animation: toastOut .2s ease-in forwards; }
+.toast.success { border-right-color: #059669; }
+.toast.error   { border-right-color: #e11d48; }
+.toast.warning { border-right-color: #d97706; }
+.toast.info    { border-right-color: #0284c7; }
+
+@keyframes toastIn  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-16px); } }
+
+/* ===================== الفورم غير المحفوظ ===================== */
+.is-dirty { box-shadow: inset 0 3px 0 0 #f59e0b; }
+
+/* ===================== عناصر مساعدة ===================== */
+.badge {
+    display: inline-block;
+    padding: .12rem .5rem;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.status-chip {
+    display: inline-block;
+    padding: .1rem .45rem;
+    border-radius: .4rem;
+    font-size: .65rem;
+    font-weight: 700;
+}
+
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { background-color: rgba(255, 255, 255, .12); }
+
+.stat-value { font-variant-numeric: tabular-nums; }
+
+.scroll-y-60 { max-height: 60vh; overflow-y: auto; }
+
+/* شريط حالة التخزين */
+#storageBanner { transition: all .2s ease; }
+
+/* جدول قابل للتمرير مع رأس ثابت */
+.sticky-head thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* ===================== الطباعة ===================== */
+@page {
+    size: A4 portrait;
+    margin: 10mm 8mm 14mm 8mm;
+}
+
+/* التذييل الثابت يتكرر تلقائياً في كل صفحة عند الطباعة */
+.print-only { display: none; }
+
+@media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+
+    html, body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 9.5pt;
+    }
+
+    main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+    .app-shell { box-shadow: none !important; border: none !important; }
+
+    .print-container {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+    }
+
+    /* رأس الجدول يتكرر في كل صفحة */
+    .print-table { border-collapse: collapse !important; width: 100% !important; }
+    .print-table thead { display: table-header-group !important; }
+    .print-table tfoot { display: table-footer-group !important; }
+    .print-table tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    .print-table th,
+    .print-table td {
+        border: 1px solid #000 !important;
+        padding: 3px 5px !important;
+        color: #000 !important;
+        background-image: none !important;
+    }
+    .print-table th {
+        background-color: #e8eef5 !important;
+        font-weight: 700 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* ---------- ضمان عدم اقتطاع الأعمدة على ورق A4 ----------
+       بلا هذا، الجدول العريض يتجاوز عرض الصفحة فتُقتطع أعمدة كاملة.
+       table-layout: fixed يُجبر الجدول على البقاء داخل عرض الصفحة. */
+    .print-table {
+        table-layout: fixed !important;
+        font-size: 8.5pt !important;
+        font-variant-numeric: tabular-nums;
+    }
+    .print-table th,
+    .print-table td {
+        padding: 3px 3px !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        hyphens: auto;
+    }
+    /* لا تمرير أفقي في الطباعة — التمرير يقتطع المحتوى */
+    .overflow-x-auto { overflow: visible !important; }
+
+    /* توزيع أعمدة الموقف اليومي كنسب مئوية */
+    #dashboardTable th:nth-child(1), #dashboardTable td:nth-child(1) { width: 4%; }
+    #dashboardTable th:nth-child(2), #dashboardTable td:nth-child(2) { width: 15%; }
+    #dashboardTable th:nth-child(3), #dashboardTable td:nth-child(3) { width: 13%; }
+    #dashboardTable th:nth-child(4), #dashboardTable td:nth-child(4) { width: 14%; }
+    #dashboardTable th:nth-child(5), #dashboardTable td:nth-child(5) { width: 10%; }
+    #dashboardTable th:nth-child(6), #dashboardTable td:nth-child(6) { width: 14%; }
+    #dashboardTable th:nth-child(7), #dashboardTable td:nth-child(7) { width: 22%; }
+    #dashboardTable th:nth-child(8), #dashboardTable td:nth-child(8) { width: 8%; }
+
+    /* الشعار والعناوين في الترويسة لا تتجاوز حدودها */
+    .print-container { overflow: visible !important; }
+    .print-container img { max-width: 100% !important; }
+
+    /* الشارات تفقد ألوانها في الطباعة لتوفير الحبر */
+    .badge {
+        border: 1px solid #666 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    .page-break { page-break-before: always; break-before: page; }
+    .no-break { page-break-inside: avoid; break-inside: avoid; }
+
+    /* تذييل يتكرر أسفل كل صفحة */
+    .print-footer {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        font-size: 6pt;
+        text-align: center;
+        white-space: nowrap;
+        letter-spacing: -.2px;
+        border-top: 1px solid #999;
+        padding-top: 2px;
+    }
+
+    a[href]::after { content: ""; }
+}
+
+/* ===================== الاستجابة ===================== */
+@media (max-width: 640px) {
+    .app-modal { max-width: 100%; }
+}
+
+/* منع الوميض قبل تطبيق Tailwind */
+html.preload body { visibility: hidden; }
