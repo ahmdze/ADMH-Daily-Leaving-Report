@@ -32,8 +32,7 @@ App.Settings = (function () {
 
         const footer = $('printFooterText');
         if (footer) {
-            footer.textContent = [s.ministry, s.directorate, s.hospital, s.departmentUnit]
-                .filter(Boolean).join(' — ');
+            footer.textContent = s.printFooterText || C.DEFAULT_SETTINGS.printFooterText;
         }
 
         /* الشعار */
@@ -64,7 +63,8 @@ App.Settings = (function () {
             setMinistry: s.ministry, setDirectorate: s.directorate,
             setHospital: s.hospital, setDepartmentUnit: s.departmentUnit,
             setFooterHR: s.footerHR, setFooterManager: s.footerManager,
-            setOperatorName: s.operatorName, setRptTitle: s.rptTitle
+            setOperatorName: s.operatorName, setRptTitle: s.rptTitle,
+            setPrintFooterText: s.printFooterText
         };
         Object.keys(fields).forEach(id => {
             const el = $(id);
@@ -85,7 +85,7 @@ App.Settings = (function () {
 
     function saveGeneral() {
         const s = Store.get.settings();
-        const read = (id) => { const el = $(id); return el ? App.Security.clean(el.value, 200) : ''; };
+        const read = (id, max) => { const el = $(id); return el ? App.Security.clean(el.value, max || 200) : ''; };
 
         const before = Object.assign({}, s);
         s.ministry = read('setMinistry');
@@ -96,6 +96,7 @@ App.Settings = (function () {
         s.footerManager = read('setFooterManager');
         s.operatorName = read('setOperatorName') || 'موظف الإجازات';
         s.rptTitle = read('setRptTitle') || 'موقف الإجازات اليومي للموظفين';
+        s.printFooterText = read('setPrintFooterText', 400) || C.DEFAULT_SETTINGS.printFooterText;
 
         Store.save([C.KEYS.SETTINGS]);
         App.Audit.log({ action: 'update', entity: 'settings', label: 'تحديث بيانات الترويسة', before: before, after: s });
@@ -103,7 +104,29 @@ App.Settings = (function () {
         App.Notify.toast('تم حفظ بيانات الترويسة', 'success');
     }
 
-    function savePolicy() {
+    /** يطبّق رصيداً واحداً على كل الموظفين الحاليين */
+    function applyBalanceToAll(value) {
+        const v = App.Security.toInt(value, C.DEFAULT_SETTINGS.defaultAnnualBalance, 0, 365);
+        const staff = Store.get.staff();
+        if (!staff.length) {
+            App.Notify.toast('لا يوجد موظفون في الدليل', 'warning');
+            return 0;
+        }
+
+        const before = staff.map(p => ({ id: p.id, name: p.name, annualBalance: p.annualBalance }));
+        staff.forEach(p => { p.annualBalance = v; });
+
+        Store.save([C.KEYS.STAFF]);
+        App.Audit.log({
+            action: 'update', entity: 'staff',
+            label: 'تطبيق الرصيد السنوي ' + v + ' يوم على ' + staff.length + ' موظف',
+            before: before
+        });
+        App.Notify.toast('تم تطبيق ' + v + ' يوم على ' + staff.length + ' موظف', 'success');
+        return staff.length;
+    }
+
+    async function savePolicy() {
         const s = Store.get.settings();
         const before = Object.assign({}, s);
 
@@ -112,7 +135,8 @@ App.Settings = (function () {
         const cw = $('setCountWeekend');
         s.countWeekend = cw ? cw.checked : true;
         const db = $('setDefaultBalance');
-        s.defaultAnnualBalance = App.Security.toInt(db ? db.value : 21, 21, 0, 365);
+        s.defaultAnnualBalance = App.Security.toInt(db ? db.value : C.DEFAULT_SETTINGS.defaultAnnualBalance,
+            C.DEFAULT_SETTINGS.defaultAnnualBalance, 0, 365);
         const ds = $('setDefaultStatus');
         s.defaultStatus = ds ? ds.value : 'approved';
 
@@ -121,6 +145,26 @@ App.Settings = (function () {
         applyToUI();
         if (App.Entry && App.Entry.refresh) App.Entry.refresh();
         App.Notify.toast('تم حفظ السياسة', 'success');
+
+        /* الرصيد الافتراضي يُطبَّق على الموظفين الجدد فقط،
+           فرصيد كل موظف حالي محفوظ على حدة. لذلك نسأل عند تغييره. */
+        const oldBalance = App.Security.toInt(before.defaultAnnualBalance, 0, 0, 365);
+        if (s.defaultAnnualBalance !== oldBalance && Store.get.staff().length) {
+            const apply = await App.Notify.confirm(
+                'تغيّر الرصيد السنوي الافتراضي من ' + oldBalance + ' إلى ' + s.defaultAnnualBalance + ' يوم.\n\n' +
+                'هذا الرصيد يُطبَّق تلقائياً على الموظفين الجدد فقط، أما الموظفون الحاليون ' +
+                '(' + Store.get.staff().length + ' موظف) فلكل واحد رصيده المحفوظ.\n\n' +
+                'هل تريد تطبيق الرصيد الجديد على كل الموظفين الحاليين أيضاً؟',
+                {
+                    title: 'تطبيق الرصيد الجديد',
+                    confirmText: 'طبّقه على الكل',
+                    cancelText: 'الجدد فقط',
+                    type: 'question',
+                    icon: 'fa-users-gear'
+                }
+            );
+            if (apply) applyBalanceToAll(s.defaultAnnualBalance);
+        }
     }
 
     /** يعيد احتساب كل السجلات وفق السياسة والعطل الحالية */
@@ -532,6 +576,20 @@ App.Settings = (function () {
         bind('btnSaveSettings', 'click', saveGeneral);
         bind('btnSavePolicy', 'click', savePolicy);
         bind('btnRecalcAll', 'click', recalcAll);
+        bind('btnApplyBalanceAll', 'click', async () => {
+            const db = $('setDefaultBalance');
+            const v = App.Security.toInt(db ? db.value : C.DEFAULT_SETTINGS.defaultAnnualBalance,
+                C.DEFAULT_SETTINGS.defaultAnnualBalance, 0, 365);
+            const n = Store.get.staff().length;
+            if (!n) { App.Notify.toast('لا يوجد موظفون في الدليل', 'warning'); return; }
+
+            const ok = await App.Notify.confirm(
+                'سيتم ضبط الرصيد السنوي لجميع الموظفين (' + n + ' موظف) على ' + v + ' يوم.\n\n' +
+                'هذا يستبدل أي رصيد مخصّص لموظف معيّن.',
+                { title: 'تطبيق الرصيد على الكل', confirmText: 'تطبيق', type: 'warning' }
+            );
+            if (ok) applyBalanceToAll(v);
+        });
         bind('btnPickLogo', 'click', pickLogo);
         bind('logoInput', 'change', handleLogo);
         bind('removeLogoBtn', 'click', removeLogo);

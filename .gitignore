@@ -8,8 +8,10 @@ tools/package-lock.json
 _backup/
 _screenshots/
 _downloads/
+_downloads_req/
 _smoke*
 _diag*
 _diag-*.json
+tools/_tmp-*
 *.bak
 *.tmp

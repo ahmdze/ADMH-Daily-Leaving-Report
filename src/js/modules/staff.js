@@ -249,8 +249,8 @@ App.Staff = (function () {
                             ${rows.map(l => `
                                 <tr>
                                     <td class="py-1.5 px-2 border border-slate-200">${esc(l.leaveType || '-')}</td>
-                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatISO(l.fromDate))}</td>
-                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatISO(l.toDate))}</td>
+                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatDMY(l.fromDate))}</td>
+                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatDMY(l.toDate))}</td>
                                     <td class="py-1.5 px-2 border border-slate-200">${l.leaveTypeIsHourly ? esc(String(l.hoursCount || 0)) + ' ساعة' : (l.deductedDays || 0)}</td>
                                     <td class="py-1.5 px-2 border border-slate-200">${l.compensatoryDays || 0}</td>
                                     <td class="py-1.5 px-2 border border-slate-200">
@@ -299,7 +299,7 @@ App.Staff = (function () {
                         <tbody>
                             ${entries.map(c => `
                                 <tr>
-                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatISO(c.date))}</td>
+                                    <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatDMY(c.date))}</td>
                                     <td class="py-1.5 px-2 border border-slate-200 font-bold">${c.days || 0}</td>
                                     <td class="py-1.5 px-2 border border-slate-200 text-right">${esc(c.reason || '-')}</td>
                                     <td class="py-1.5 px-2 border border-slate-200">
@@ -345,7 +345,7 @@ App.Staff = (function () {
             if (!c) return;
 
             const ok = await App.Notify.confirm(
-                'تسديد ' + (c.days || 1) + ' يوم تعويضي بتاريخ ' + App.Dates.formatISO(c.date) + '؟',
+                'تسديد ' + (c.days || 1) + ' يوم تعويضي بتاريخ ' + App.Dates.formatDMY(c.date) + '؟',
                 { title: 'تسديد يوم تعويضي', confirmText: 'نعم، سدّد' }
             );
             if (!ok) return;

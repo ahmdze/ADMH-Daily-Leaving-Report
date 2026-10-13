@@ -316,7 +316,7 @@ App.Reports = (function () {
             type: 'range', from: from, to: to,
             year: Dates.yearOf(from) || thisYear, month: 0,
             title: 'من ' + from + ' إلى ' + to,
-            label: 'الفترة: من ' + full(from) + ' إلى ' + full(to)
+            label: 'الفترة: ' + Dates.formatDMYRange(from, to)
         };
     }
 
@@ -403,14 +403,17 @@ App.Reports = (function () {
      * أي خلية قد تكون رقماً أو نصاً أو كائناً { html, cls }
      */
     function tableHtml(cols, rows) {
-        const head = (cols || []).map(c =>
-            '<th class="py-2 px-2 border border-slate-300 ' + (c.align === 'right' ? 'text-right' : '') + '">' +
-            App.Security.esc(c.label) + '</th>').join('');
+        const head = (cols || []).map(c => {
+            const ccls = (c && c.cls) ? ' ' + c.cls : '';
+            return '<th class="py-2 px-2 border border-slate-300 ' + (c.align === 'right' ? 'text-right' : '') + ccls + '">' +
+                App.Security.esc(c.label) + '</th>';
+        }).join('');
 
         const body = (rows || []).map(cells =>
             '<tr>' + (cells || []).map((cell, i) => {
                 const col = cols[i] || {};
-                const cls = 'py-1.5 px-2 border border-slate-300 ' + (col.align === 'right' ? 'text-right' : '');
+                const cls = 'py-1.5 px-2 border border-slate-300 ' + (col.align === 'right' ? 'text-right' : '') +
+                    (col.cls ? ' ' + col.cls : '');
                 if (cell && typeof cell === 'object' && cell.html !== undefined) {
                     return '<td class="' + cls + (cell.cls ? ' ' + cell.cls : '') + '">' + cell.html + '</td>';
                 }
@@ -443,8 +446,10 @@ App.Reports = (function () {
             ? '<img src="' + App.Security.escAttr(s.logoBase64) + '" alt="الشعار" class="max-h-full max-w-full object-contain">'
             : '<i class="fa-solid fa-hospital-user text-2xl text-brand-700"></i>';
 
+        /* data-print-header: يتعرّف عليه محرّك الترقيم App.PrintLayout فيكرّر
+           هذه الترويسة الرسمية في أعلى كل صفحة A4 عند الطباعة وتصدير PDF. */
         return '' +
-            '<div class="border-b-2 border-brand-800 pb-3 mb-4">' +
+            '<div class="border-b-2 border-brand-800 pb-3 mb-4" data-print-header>' +
                 '<div class="grid grid-cols-3 items-center text-center gap-2">' +
                     '<div class="text-right space-y-0.5">' +
                         '<h3 class="font-bold text-[11px] md:text-xs text-slate-900">' + App.Security.esc(s.ministry || '') + '</h3>' +
@@ -487,18 +492,19 @@ App.Reports = (function () {
             '</div>';
     }
 
-    /** تذييل التواقيع الرسمي */
+    /** تذييل التواقيع الرسمي — float بدل grid لأن html2canvas لا يحترم ترتيب RTL في grid */
     function footerHtml(s) {
         return '' +
-            '<div class="mt-8 pt-4 grid grid-cols-2 gap-6 text-center text-[11px] no-break">' +
-                '<div>' +
+            '<div class="mt-8 pt-4 text-[11px] print-signatures">' +
+                '<div class="signature-block signature-right">' +
                     '<p class="font-bold text-slate-700">' + App.Security.esc(s.footerHR || '') + '</p>' +
                     '<p class="text-slate-400 mt-6">التوقيع: .....................</p>' +
                 '</div>' +
-                '<div>' +
+                '<div class="signature-block signature-left">' +
                     '<p class="font-bold text-slate-700">' + App.Security.esc(s.footerManager || '') + '</p>' +
                     '<p class="text-slate-400 mt-6">التوقيع: .....................</p>' +
                 '</div>' +
+                '<div class="signature-clear"></div>' +
             '</div>';
     }
 
@@ -511,12 +517,27 @@ App.Reports = (function () {
             '</div>';
     }
 
-    /** تفاصيل سجل واحد: أيام/ساعات + من/إلى */
-    function durationOf(rec) {
-        if (rec && rec.leaveTypeIsHourly) {
-            return num(rec.hoursCount) + ' ساعة' + (timeRangeOf(rec) ? ' (' + timeRangeOf(rec) + ')' : '');
+    /**
+     * وصف مدة الإجازة لعمود «المدة»: «X ساعة» للإجازات الساعية و«X يوم» لغيرها.
+     * نعتمد App.Dates.describeDuration إن أعادت نصاً معقولاً (يحوي رقماً ووحدة)،
+     * وإلا نحسبها محلياً من leaveTypeIsHourly / hoursCount / deductedDays / daysCount.
+     */
+    function durationText(rec) {
+        let txt = '';
+        try {
+            if (Dates && typeof Dates.describeDuration === 'function') txt = String(Dates.describeDuration(rec) || '');
+        } catch (e) { txt = ''; }
+        if (!/\d/.test(txt)) {
+            if (rec && rec.leaveTypeIsHourly) {
+                txt = num(rec.hoursCount) + ' ساعة';
+            } else {
+                txt = (num(rec && rec.deductedDays) || num(rec && rec.daysCount)) + ' يوم';
+            }
         }
-        return String(deducted(rec));
+        /* الإجازات الساعية: نُرفق نطاق الوقت إن وُجد (مثل: 3 ساعة (08:00 - 11:00)) */
+        const range = timeRangeOf(rec);
+        if (rec && rec.leaveTypeIsHourly && range) txt += ' (' + range + ')';
+        return txt;
     }
 
     function fromToText(rec) {
@@ -785,7 +806,8 @@ App.Reports = (function () {
             const d = isoOf(ref);
             if (!d) return true;               /* بلا تاريخ → يُعرض دائماً */
             return d >= period.from && d <= period.to;
-        }).sort((a, b) => String(isoOf(a.settledAt || a.createdAt)).localeCompare(String(isoOf(b.settledAt || b.createdAt))));
+        }).sort((a, b) => String(isoOf(a.date) || isoOf(a.createdAt) || '')
+            .localeCompare(String(isoOf(b.date) || isoOf(b.createdAt) || '')));
 
         const empMap = {};
         const order = [];
@@ -816,6 +838,10 @@ App.Reports = (function () {
             employees: employees,
             details: inPeriod.map(c => ({
                 empName: c.empName || (employeeOf('', c.empId) || {}).name || 'غير معروف',
+                /* تاريخ الاستحقاق = تاريخ نشوء الدين التعويضي وهو حقل date
+                   (تاريخ بداية الإجازة التي وقعت فيها العطلة المستثناة)،
+                   ويُستعمل createdAt كبديل للسجلات القديمة الخالية من date. */
+                dueDate: isoOf(c.date) || isoOf(c.createdAt),
                 days: num(c.days),
                 reason: c.reason || '',
                 leaveId: c.leaveId || '',
@@ -965,21 +991,28 @@ App.Reports = (function () {
             if (!rep.hasRows) {
                 out += emptyHtml('لا توجد قيود تعويضية في الفترة المحددة');
             } else {
+                /* نفس ترتيب أعمدة ورقة Excel تماماً:
+                   ت | اسم الموظف | تاريخ الاستحقاق | الأيام | السبب | حالة التسديد | تاريخ التسديد */
                 out += tableHtml(
-                    [{ label: 'ت' }, { label: 'التاريخ' }, { label: 'اسم الموظف', align: 'right' },
-                     { label: 'عدد الأيام' }, { label: 'السبب', align: 'right' }, { label: 'الحالة' }, { label: 'تاريخ التسديد' }],
+                    [{ label: 'ت' }, { label: 'اسم الموظف', align: 'right' },
+                     { label: 'تاريخ الاستحقاق' }, { label: 'الأيام' },
+                     { label: 'السبب', align: 'right' },
+                     { label: 'حالة التسديد' }, { label: 'تاريخ التسديد' }],
                     rep.details.map((c, i) => [
                         String(i + 1),
-                        c.settledAt || c.createdAt || '—',
                         { html: App.Security.esc(c.empName), cls: 'text-right font-bold' },
+                        App.Security.esc(Dates.formatDMY(c.dueDate) || '—'),
                         String(c.days),
                         { html: App.Security.esc(clip(c.reason, 50) || '—'), cls: 'text-right' },
                         {
+                            /* «حالة التسديد» ليست «حالة السجل»: تبقى في الطباعة و PDF
+                               لأنها جوهر تقرير الأيام التعويضية. */
                             html: c.settled
                                 ? '<span class="badge bg-emerald-100 text-emerald-800">مسدد</span>'
                                 : '<span class="badge bg-rose-100 text-rose-800">غير مسدد</span>'
                         },
-                        c.settledAt || '—'
+                        /* تاريخ التسديد مستقل: فارغ لغير المسدَّد */
+                        App.Security.esc(Dates.formatDMY(c.settledAt) || '—')
                     ])
                 );
             }
@@ -989,57 +1022,64 @@ App.Reports = (function () {
         return out + emptyHtml();
     }
 
-    /** جدول تفاصيل سجلات الإجازات */
+    /** جدول تفاصيل سجلات الإجازات
+     *  الترتيب: ت + [اسم الموظف] + نوع الإجازة + المدة + من تاريخ + إلى تاريخ + (الحالة) + الملاحظات
+     *  عمود «الحالة» معلَّم بـ no-print no-export: يظهر على الشاشة ويختفي من الطباعة و PDF و Excel.
+     */
     function detailsTable(rows, withEmp) {
         const cols = withEmp
-            ? [{ label: 'ت' }, { label: 'اسم الموظف', align: 'right' }, { label: 'نوع الإجازة', align: 'right' },
-               { label: 'من تاريخ' }, { label: 'إلى تاريخ' }, { label: 'المدة' },
-               { label: 'الأيام المخصومة' }, { label: 'الحالة' }, { label: 'الملاحظات', align: 'right' }]
-            : [{ label: 'ت' }, { label: 'نوع الإجازة', align: 'right' }, { label: 'من تاريخ' }, { label: 'إلى تاريخ' },
-               { label: 'المدة' }, { label: 'الأيام المخصومة' }, { label: 'الحالة' }, { label: 'الملاحظات', align: 'right' }];
+            ? [{ label: 'ت' }, { label: 'اسم الموظف', align: 'right' },
+               { label: 'نوع الإجازة', align: 'right' }, { label: 'المدة' },
+               { label: 'من تاريخ' }, { label: 'إلى تاريخ' },
+               { label: 'الحالة', cls: 'no-print no-export' }, { label: 'الملاحظات', align: 'right' }]
+            : [{ label: 'ت' }, { label: 'نوع الإجازة', align: 'right' }, { label: 'المدة' },
+               { label: 'من تاريخ' }, { label: 'إلى تاريخ' },
+               { label: 'الحالة', cls: 'no-print no-export' }, { label: 'الملاحظات', align: 'right' }];
 
         const body = (rows || []).map((r, i) => {
             const cells = [];
             cells.push(String(i + 1));
             if (withEmp) cells.push({ html: App.Security.esc(r.empName || ''), cls: 'text-right font-bold' });
             cells.push({ html: App.Security.esc(r.leaveType || ''), cls: 'text-right' });
-            cells.push(App.Security.esc(Dates.formatISO(r.fromDate)));
-            cells.push(App.Security.esc(Dates.formatISO(r.toDate) || Dates.formatISO(r.fromDate)));
-            cells.push(App.Security.esc(r.leaveTypeIsHourly ? (num(r.hoursCount) + ' ساعة') : (num(r.deductedDays) + ' يوم')));
-            cells.push(App.Security.esc(String(r.leaveTypeIsHourly ? 0 : num(r.deductedDays))));
-            cells.push({ html: statusChip(r.status) });
+            cells.push(App.Security.esc(durationText(r)));
+            cells.push(App.Security.esc(Dates.formatDMY(r.fromDate)));
+            cells.push(App.Security.esc(Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate)));
+            cells.push({ html: statusChip(r.status), cls: 'no-print no-export' });
             cells.push({ html: App.Security.esc(clip(r.notes, 60) || '—'), cls: 'text-right' });
             return cells;
         });
 
         const sumDays = (rows || []).reduce((s, r) => s + (r.leaveTypeIsHourly ? 0 : num(r.deductedDays)), 0);
-        /* الأعمدة: ت + [الموظف] + النوع + من + إلى + المدة + (المخصوم) + الحالة + الملاحظات */
-        const firstSpan = withEmp ? 6 : 5;
+        /* الأعمدة المطبوعة: ت + [الموظف] + النوع + المدة + من + إلى = 5 أو 4 */
+        const firstSpan = withEmp ? 5 : 4;
         const foot = '<tfoot><tr class="bg-slate-50 font-bold">' +
             '<td class="py-1.5 px-2 border border-slate-300 text-right" colspan="' + firstSpan + '">المجموع</td>' +
-            '<td class="py-1.5 px-2 border border-slate-300">' + App.Security.esc(String(sumDays)) + '</td>' +
-            '<td class="py-1.5 px-2 border border-slate-300" colspan="2">—</td>' +
+            '<td class="py-1.5 px-2 border border-slate-300">' + App.Security.esc(String(sumDays)) + ' يوم</td>' +
+            '<td class="py-1.5 px-2 border border-slate-300" colspan="3"></td>' +
             '</tr></tfoot>';
 
         return tableHtml(cols, body).replace('</table>', foot + '</table>');
     }
 
-    /** جدول تفاصيل كل السجلات (يشمل القسم) */
+    /** جدول تفاصيل كل السجلات (يشمل القسم)
+     *  الترتيب: ت + القسم + اسم الموظف + نوع الإجازة + المدة + من تاريخ + إلى تاريخ + (الحالة) + الملاحظات
+     */
     function allDetailsTable(rows) {
         const cols = [
             { label: 'ت' }, { label: 'القسم', align: 'right' }, { label: 'اسم الموظف', align: 'right' },
-            { label: 'نوع الإجازة', align: 'right' }, { label: 'من تاريخ' }, { label: 'إلى تاريخ' },
-            { label: 'الأيام المخصومة' }, { label: 'الحالة' }, { label: 'الملاحظات', align: 'right' }
+            { label: 'نوع الإجازة', align: 'right' }, { label: 'المدة' },
+            { label: 'من تاريخ' }, { label: 'إلى تاريخ' },
+            { label: 'الحالة', cls: 'no-print no-export' }, { label: 'الملاحظات', align: 'right' }
         ];
         const body = (rows || []).map((r, i) => [
             String(i + 1),
             { html: App.Security.esc(r.dept || '—'), cls: 'text-right' },
             { html: App.Security.esc(r.empName || ''), cls: 'text-right font-bold' },
             { html: App.Security.esc(r.leaveType || ''), cls: 'text-right' },
-            App.Security.esc(Dates.formatISO(r.fromDate)),
-            App.Security.esc(Dates.formatISO(r.toDate) || Dates.formatISO(r.fromDate)),
-            App.Security.esc(String(r.leaveTypeIsHourly ? 0 : num(r.deductedDays))),
-            { html: statusChip(r.status) },
+            App.Security.esc(durationText(r)),
+            App.Security.esc(Dates.formatDMY(r.fromDate)),
+            App.Security.esc(Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate)),
+            { html: statusChip(r.status), cls: 'no-print no-export' },
             { html: App.Security.esc(clip(r.notes, 50) || '—'), cls: 'text-right' }
         ]);
         return tableHtml(cols, body);
@@ -1146,12 +1186,11 @@ App.Reports = (function () {
             summary.push(['أيام تعويضية غير مسددة', rep.openCompensations]);
 
             detailsName = 'تفاصيل الإجازات';
-            detailRows.push(['ت', 'نوع الإجازة', 'من تاريخ', 'إلى تاريخ', 'المدة', 'الأيام المخصومة', 'الحالة', 'الملاحظات']);
+            detailRows.push(['ت', 'نوع الإجازة', 'المدة', 'من تاريخ', 'إلى تاريخ', 'الملاحظات']);
             rep.details.forEach((r, i) => detailRows.push([
-                i + 1, r.leaveType || '', Dates.formatISO(r.fromDate), Dates.formatISO(r.toDate) || Dates.formatISO(r.fromDate),
-                r.leaveTypeIsHourly ? (num(r.hoursCount) + ' ساعة') : (num(r.deductedDays) + ' يوم'),
-                r.leaveTypeIsHourly ? 0 : num(r.deductedDays),
-                (C.STATUS_LABEL && C.STATUS_LABEL[r.status]) || r.status || '', r.notes || ''
+                i + 1, r.leaveType || '', durationText(r),
+                Dates.formatDMY(r.fromDate), Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate),
+                r.notes || ''
             ]));
         } else if (rep.mode === 'department') {
             summary.push([], ['—— مجاميع الموظفين ——'], ['اسم الموظف', 'العنوان الوظيفي', 'عدد السجلات', 'الأيام المخصومة']);
@@ -1159,15 +1198,14 @@ App.Reports = (function () {
             summary.push(['المجموع', '', rep.totals.count, rep.totals.days]);
 
             detailsName = 'تفاصيل القسم';
-            detailRows.push(['ت', 'اسم الموظف', 'نوع الإجازة', 'من تاريخ', 'إلى تاريخ', 'الأيام المخصومة', 'الحالة', 'الملاحظات']);
+            detailRows.push(['ت', 'اسم الموظف', 'نوع الإجازة', 'المدة', 'من تاريخ', 'إلى تاريخ', 'الملاحظات']);
             let i = 0;
             rep.employees.forEach(e => e.details.forEach(r => {
                 i++;
                 detailRows.push([
-                    i, r.empName || e.name, r.leaveType || '', Dates.formatISO(r.fromDate),
-                    Dates.formatISO(r.toDate) || Dates.formatISO(r.fromDate),
-                    r.leaveTypeIsHourly ? 0 : num(r.deductedDays),
-                    (C.STATUS_LABEL && C.STATUS_LABEL[r.status]) || r.status || '', r.notes || ''
+                    i, r.empName || e.name, r.leaveType || '', durationText(r),
+                    Dates.formatDMY(r.fromDate), Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate),
+                    r.notes || ''
                 ]);
             }));
         } else if (rep.mode === 'all') {
@@ -1176,12 +1214,11 @@ App.Reports = (function () {
             summary.push(['المجموع العام', '', rep.totals.count, rep.totals.days]);
 
             detailsName = 'جميع السجلات';
-            detailRows.push(['ت', 'القسم', 'اسم الموظف', 'نوع الإجازة', 'من تاريخ', 'إلى تاريخ', 'الأيام المخصومة', 'الحالة', 'الملاحظات']);
+            detailRows.push(['ت', 'القسم', 'اسم الموظف', 'نوع الإجازة', 'المدة', 'من تاريخ', 'إلى تاريخ', 'الملاحظات']);
             rep.details.forEach((r, i) => detailRows.push([
-                i + 1, r.dept || '', r.empName || '', r.leaveType || '',
-                Dates.formatISO(r.fromDate), Dates.formatISO(r.toDate) || Dates.formatISO(r.fromDate),
-                r.leaveTypeIsHourly ? 0 : num(r.deductedDays),
-                (C.STATUS_LABEL && C.STATUS_LABEL[r.status]) || r.status || '', r.notes || ''
+                i + 1, r.dept || '', r.empName || '', r.leaveType || '', durationText(r),
+                Dates.formatDMY(r.fromDate), Dates.formatDMY(r.toDate) || Dates.formatDMY(r.fromDate),
+                r.notes || ''
             ]));
         } else if (rep.mode === 'balance') {
             summary.push([], ['—— ملخص الأرصدة ——']);
@@ -1206,10 +1243,16 @@ App.Reports = (function () {
             rep.employees.forEach(e => summary.push([e.name, e.open, e.settled, e.total]));
 
             detailsName = 'الأيام التعويضية';
-            detailRows.push(['ت', 'التاريخ', 'اسم الموظف', 'عدد الأيام', 'السبب', 'الحالة', 'تاريخ التسديد']);
+            /* لا يوجد في هذا التقرير عمود «حالة السجل» أصلاً؛ العمود الذي كان عنوانه
+               «الحالة» هو حالة التسديد (مسدد / غير مسدد) فبقي بعنوان «حالة التسديد».
+               «تاريخ الاستحقاق» (dueDate = date) و«تاريخ التسديد» (settledAt) معلومتان
+               مختلفتان، لذا لكل منهما عمود مستقل، ونفس الترتيب في جدول الطباعة. */
+            detailRows.push(['ت', 'اسم الموظف', 'تاريخ الاستحقاق', 'الأيام', 'السبب', 'حالة التسديد', 'تاريخ التسديد']);
             rep.details.forEach((c, i) => detailRows.push([
-                i + 1, c.settledAt || c.createdAt || '', c.empName || '', c.days, c.reason || '',
-                c.settled ? 'مسدد' : 'غير مسدد', c.settledAt || ''
+                i + 1, c.empName || '',
+                Dates.formatDMY(c.dueDate) || '—',
+                c.days, c.reason || '', c.settled ? 'مسدد' : 'غير مسدد',
+                Dates.formatDMY(c.settledAt) || '—'
             ]));
         }
 
@@ -1217,7 +1260,7 @@ App.Reports = (function () {
 
         return [
             { name: 'ملخص التقرير', rows: summary, widths: [30, 22, 22, 20] },
-            { name: detailsName, rows: detailRows, widths: [6, 28, 22, 14, 14, 16, 14, 30] }
+            { name: detailsName, rows: detailRows, widths: [6, 26, 26, 22, 20, 14, 14, 34] }
         ];
     }
 

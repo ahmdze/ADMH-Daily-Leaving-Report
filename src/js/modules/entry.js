@@ -152,7 +152,7 @@ App.Entry = (function () {
             html += `<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-1">
                         <p class="font-bold text-amber-900 mb-1">عطل رسمية داخل المدة (${a.holidays.length}):</p>
                         <ul class="space-y-0.5 text-amber-900">
-                            ${a.holidays.map(h => `<li>• ${esc(App.Dates.formatISO(h.date))} — ${esc(h.name)}
+                            ${a.holidays.map(h => `<li>• ${esc(App.Dates.formatDMY(h.date))} — ${esc(h.name)}
                                 ${a.excludedHolidays.some(x => x.date === h.date) ? '<span class="badge bg-amber-200 text-amber-900 border-amber-300">مستثناة</span>' : ''}</li>`).join('')}
                         </ul>
                      </div>`;
@@ -199,7 +199,7 @@ App.Entry = (function () {
                     <span class="text-[10px] text-slate-500 whitespace-nowrap">${esc(l.leaveType || '')}</span>
                 </div>
                 <div class="text-[10px] text-slate-500 mt-0.5">
-                    ${esc(App.Dates.formatISO(l.fromDate))} ← ${esc(App.Dates.formatISO(l.toDate))}
+                    ${esc(App.Dates.formatDMY(l.fromDate))} ← ${esc(App.Dates.formatDMY(l.toDate))}
                     ${l.leaveTypeIsHourly ? ' · ' + (l.hoursCount || 0) + ' ساعة' : ' · ' + (l.deductedDays || 0) + ' يوم'}
                 </div>
             </div>`).join('');

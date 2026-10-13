@@ -1,16 +1,31 @@
 /* ============================================================
    التصدير والطباعة — Excel و PDF وطباعة المتصفح
    كل المكتبات محلية فلا حاجة للإنترنت.
+
+   ملاحظة مهمة حول PDF والطباعة:
+   لم يعد التصدير يعتمد على html2pdf لتقسيم الصفحات، لأن jsPDF لا
+   يُشكّل العربية. المسار الأساسي الآن هو App.PrintLayout: يبني
+   صفحات A4 حقيقية في DOM (بترويسة متكررة وتذييل مع «الصفحة X من Y»)،
+   ثم إمّا يطبعها أو يحوّل كل صفحة إلى صورة داخل jsPDF.
+   ويبقى المسار القديم (html2pdf / window.print) احتياطاً فقط عند غياب
+   المكتبات.
    ============================================================ */
 window.App = window.App || {};
 
 App.Exporters = (function () {
     'use strict';
 
-    const esc = App.Security.esc;
-
     function hasXLSX() { return typeof window.XLSX !== 'undefined'; }
     function hasHtml2Pdf() { return typeof window.html2pdf !== 'undefined'; }
+
+    /** هل محرّك الصفحات الجديد جاهز؟ */
+    function hasPrintLayout() {
+        return !!(window.App && App.PrintLayout &&
+            typeof App.PrintLayout.paginate === 'function' &&
+            typeof App.PrintLayout.print === 'function' &&
+            typeof App.PrintLayout.toPdf === 'function' &&
+            typeof App.PrintLayout.cleanup === 'function');
+    }
 
     function stamp() {
         const d = new Date();
@@ -28,6 +43,25 @@ App.Exporters = (function () {
         setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
 
+    /**
+     * سطر التذييل الثابت — يُضاف آخر كل ورقة Excel كما يظهر أسفل كل صفحة مطبوعة.
+     * نصّه من الإعدادات فيبقى قابلاً للتعديل.
+     */
+    function footerLine() {
+        let s = null;
+        try { s = App.Store && App.Store.get ? App.Store.get.settings() : null; } catch (e) { s = null; }
+        return (s && s.printFooterText) ||
+            (App.Constants && App.Constants.DEFAULT_SETTINGS
+                ? App.Constants.DEFAULT_SETTINGS.printFooterText : '');
+    }
+
+    /** يُلحق سطر التذييل بورقة Excel (صف واحد فارغ قبله للفصل) */
+    function appendFooter(ws) {
+        const text = footerLine();
+        if (!text) return;
+        XLSX.utils.sheet_add_aoa(ws, [[''], [text]], { origin: -1 });
+    }
+
     /* ------------------------------------------------------------
        Excel: عدة أوراق من مصفوفات صفوف
        sheets = [{ name, rows: [[...],[...]], widths: [12, 20] }]
@@ -40,7 +74,10 @@ App.Exporters = (function () {
         const wb = XLSX.utils.book_new();
 
         sheets.forEach(s => {
-            const ws = XLSX.utils.aoa_to_sheet(s.rows || []);
+            const rows = (s.rows || []).slice();
+            /* التذييل الثابت آخر كل ورقة */
+            rows.push([''], [footerLine()]);
+            const ws = XLSX.utils.aoa_to_sheet(rows);
             if (s.widths) ws['!cols'] = s.widths.map(w => ({ wch: w }));
             /* اتجاه الورقة من اليمين لليسار */
             if (!ws['!views']) ws['!views'] = [{ RTL: true }];
@@ -81,6 +118,8 @@ App.Exporters = (function () {
 
         const ws = XLSX.utils.table_to_sheet(clone, { raw: false });
         ws['!views'] = [{ RTL: true }];
+        /* التذييل الثابت آخر الورقة كما في المطبوع */
+        appendFooter(ws);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, App.Security.safeFileName(sheetName || 'ورقة', 'ورقة').slice(0, 31));
         XLSX.writeFile(wb, fileName || ('تصدير_' + stamp() + '.xlsx'));
@@ -88,9 +127,10 @@ App.Exporters = (function () {
     }
 
     /* ------------------------------------------------------------
-       PDF: عبر html2pdf على عنصر محدد — بمقاس A4
+       المسار الاحتياطي القديم: html2pdf على عنصر محدد
+       يعمل فقط عند غياب html2canvas أو jsPDF (مسار App.PrintLayout).
        ------------------------------------------------------------ */
-    function pdfFromElement(element, fileName, opts) {
+    function legacyPdf(element, fileName, opts) {
         if (!element) return Promise.reject(new Error('لا يوجد محتوى للتصدير'));
         if (!hasHtml2Pdf()) {
             App.Notify.alert('مكتبة PDF المحلية لم تُحمّل. يمكنك استخدام زر الطباعة ثم «حفظ كـ PDF».', 'error');
@@ -134,6 +174,23 @@ App.Exporters = (function () {
     }
 
     /* ------------------------------------------------------------
+       PDF: عبر محرّك صفحات A4 الحقيقي
+       ------------------------------------------------------------ */
+    function pdfFromElement(element, fileName, opts) {
+        if (!element) {
+            App.Notify.alert('لا يوجد محتوى للتصدير.', 'error');
+            return Promise.resolve({ pages: 0 });
+        }
+
+        if (hasPrintLayout() && App.PrintLayout.available()) {
+            return App.PrintLayout.toPdf(element, fileName, opts);
+        }
+
+        /* احتياط: المكتبات ناقصة → نسلك المسار القديم */
+        return legacyPdf(element, fileName, opts);
+    }
+
+    /* ------------------------------------------------------------
        الطباعة — الطباعة تعطي أفضل جودة عربية (نص متجهي حقيقي)
        ------------------------------------------------------------ */
     function print(title) {
@@ -143,8 +200,8 @@ App.Exporters = (function () {
         setTimeout(() => { document.title = prev; }, 800);
     }
 
-    /** طباعة عنصر معين فقط: نخفي بقية الصفحة مؤقتاً */
-    function printElement(element, title) {
+    /** المسار الاحتياطي القديم: عزل عنصر واحد عبر visibility */
+    function legacyPrintElement(element, title) {
         if (!element) return print(title);
         const marker = 'print-isolate-' + Date.now();
         element.classList.add(marker);
@@ -170,6 +227,17 @@ App.Exporters = (function () {
         }, 1000);
     }
 
+    /** طباعة عنصر معين فقط بصفحات A4 مولّدة */
+    function printElement(element, title, opts) {
+        if (!element) return print(title);
+
+        if (hasPrintLayout()) {
+            return App.PrintLayout.print(element, title, opts);
+        }
+
+        return legacyPrintElement(element, title);
+    }
+
     return {
         excel: excel,
         excelFromTable: excelFromTable,
@@ -179,6 +247,7 @@ App.Exporters = (function () {
         stamp: stamp,
         download: download,
         hasXLSX: hasXLSX,
-        hasHtml2Pdf: hasHtml2Pdf
+        hasHtml2Pdf: hasHtml2Pdf,
+        hasPrintLayout: hasPrintLayout
     };
 })();

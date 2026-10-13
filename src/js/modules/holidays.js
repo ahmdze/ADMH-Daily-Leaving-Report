@@ -73,7 +73,7 @@ App.Holidays = (function () {
                 <tr class="hover:bg-slate-50 text-slate-800">
                     <td class="py-2 px-2 border border-slate-200 font-bold">${i + 1}</td>
                     <td class="py-2 px-2 border border-slate-200 text-right font-bold">${esc(h.name)}</td>
-                    <td class="py-2 px-2 border border-slate-200">${esc(App.Dates.formatISO(h.date))}</td>
+                    <td class="py-2 px-2 border border-slate-200">${esc(App.Dates.formatDMY(h.date))}</td>
                     <td class="py-2 px-2 border border-slate-200 ${isWeekend ? 'text-slate-400' : ''}">${esc(dow)}</td>
                     <td class="py-2 px-2 border border-slate-200">
                         ${h.recurring ? '<i class="fa-solid fa-check text-emerald-600"></i>' : '<span class="text-slate-300">—</span>'}
@@ -201,7 +201,7 @@ App.Holidays = (function () {
     async function remove(id) {
         const h = all().find(x => x.id === id);
         if (!h) return;
-        const ok = await App.Notify.confirm('حذف عطلة «' + h.name + '» بتاريخ ' + App.Dates.formatISO(h.date) + '؟',
+        const ok = await App.Notify.confirm('حذف عطلة «' + h.name + '» بتاريخ ' + App.Dates.formatDMY(h.date) + '؟',
             { title: 'تأكيد الحذف', danger: true, confirmText: 'احذف', type: 'warning' });
         if (!ok) return;
 
@@ -311,7 +311,7 @@ App.Holidays = (function () {
                 const rows = [['ت', 'اسم العطلة', 'التاريخ', 'اليوم', 'تتكرر سنوياً', 'داخل الإجازة']];
                 all().slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach((h, i) => {
                     rows.push([
-                        i + 1, h.name, h.date, App.Dates.dayName(h.date),
+                        i + 1, h.name, App.Dates.formatDMY(h.date), App.Dates.dayName(h.date),
                         h.recurring ? 'نعم' : 'لا',
                         (h.excluded === null || h.excluded === undefined) ? 'حسب السياسة'
                             : (h.excluded ? 'لا - تُستثنى' : 'نعم')

@@ -699,7 +699,7 @@
             }
 
             const m = lastModel;
-            const title = 'الإحصائيات — من ' + m.range.from + ' إلى ' + m.range.to +
+            const title = 'الإحصائيات — ' + D.formatDMYRange(m.range.from, m.range.to) +
                 ' — القسم: ' + (m.filters.dept || 'الكل') +
                 ' — النوع: ' + (m.filters.type || 'الكل');
 
@@ -708,14 +708,14 @@
                 widths: [26, 44],
                 rows: [
                     ['البند', 'القيمة'],
-                    ['النطاق الزمني', m.range.from + ' ← ' + m.range.to],
+                    ['النطاق الزمني', D.formatDMYRange(m.range.from, m.range.to)],
                     ['القسم', m.filters.dept || 'جميع الأقسام'],
                     ['نوع الإجازة', m.filters.type || 'جميع الأنواع'],
                     ['إجمالي السجلات', m.total],
                     ['مجازون حالياً', m.current],
                     ['أعلى قسم', m.topDept || '—'],
                     ['مجموع الأيام المخصومة', m.days],
-                    ['تاريخ التصدير', App.Dates.todayISO()]
+                    ['تاريخ التصدير', D.formatDMY(App.Dates.todayISO())]
                 ]
             };
 

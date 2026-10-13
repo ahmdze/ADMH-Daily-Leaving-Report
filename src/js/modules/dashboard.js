@@ -40,6 +40,15 @@ App.Dashboard = (function () {
         return { mode: 'all', from: '', to: '', label: 'كل السجلات' };
     }
 
+    /* ---------------- نص تاريخ الترويسة حسب نمط المدة ---------------- */
+
+    function reportDateText(range) {
+        if (range.mode === 'day') return App.Dates.formatDMYWithDay(range.from);
+        if (range.mode === 'range') return App.Dates.formatDMYRange(range.from, range.to);
+        if (range.mode === 'month') return range.label || '';
+        return 'كل السجلات';
+    }
+
     /* ---------------- التصفية ---------------- */
 
     function filtered() {
@@ -88,8 +97,8 @@ App.Dashboard = (function () {
 
         /* ترويسة التقرير */
         const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
-        setText('rptDate', range.label);
-        setText('rptCreatedDate', App.Dates.formatFull(App.Dates.todayISO()));
+        setText('rptDate', reportDateText(range));
+        setText('rptCreatedDate', App.Dates.formatDMY(App.Dates.todayISO()));
         setText('rptCount', App.num(rows.length));
         setText('rptTitle', Store.get.settings().rptTitle || 'موقف الإجازات اليومي للموظفين');
 
@@ -136,26 +145,29 @@ App.Dashboard = (function () {
                         <div class="text-[10px] text-amber-700">من ${esc(l.fromTime || '--')} إلى ${esc(l.toTime || '--')}</div>`;
                 } else {
                     const note = l.compensatoryDays
-                        ? `<div class="text-[9px] text-amber-700 font-bold">منها ${l.compensatoryDays} تعويضي</div>` : '';
-                    durationHtml = `<div class="font-bold text-slate-900">${esc(String(l.deductedDays || 0))} يوم${l.calendarDays && l.calendarDays !== l.deductedDays ? ' <span class="text-[9px] text-slate-400">(تقويمي ' + l.calendarDays + ')</span>' : ''}</div>
-                        <div class="text-[10px] text-slate-500">${esc(App.Dates.formatISO(l.fromDate))} إلى ${esc(App.Dates.formatISO(l.toDate))}</div>${note}`;
+                        ? `<div class="text-[9px] text-amber-700 font-bold">منها ${esc(String(l.compensatoryDays))} تعويضي</div>` : '';
+                    durationHtml = `<div class="font-bold text-slate-900">${esc(String(l.deductedDays || 0))} يوم${l.calendarDays && l.calendarDays !== l.deductedDays ? ' <span class="text-[9px] text-slate-400">(تقويمي ' + esc(String(l.calendarDays)) + ')</span>' : ''}</div>
+                        <div class="text-[10px] text-slate-500">${esc(App.Dates.formatDMY(l.fromDate))} إلى ${esc(App.Dates.formatDMY(l.toDate))}</div>${note}`;
                 }
 
                 const statusClass = C.STATUS_CLASS[l.status] || 'bg-slate-100 text-slate-700';
                 const statusLabel = C.STATUS_LABEL[l.status] || l.status || '';
                 const notes = (l.notes || '') + (l.holidayNote ? (l.notes ? ' — ' : '') + l.holidayNote : '');
 
+                const deptHtml = `<div class="p-dept-name">${esc(l.dept || '-')}</div>` +
+                    (l.section ? `<div class="p-dept-section">${esc(l.section)}</div>` : '');
+
                 tr.innerHTML = `
                     <td class="py-2 px-2 border border-slate-300 font-bold">${seq}</td>
-                    <td class="py-2 px-2 border border-slate-300 text-right font-bold text-slate-900">${esc(l.empName)}</td>
-                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-700">${esc(l.jobTitle || '-')}</td>
-                    <td class="py-2 px-2 border border-slate-300">${esc(l.dept || '-')}${l.section ? ' - <span class="text-slate-500">' + esc(l.section) + '</span>' : ''}</td>
+                    <td class="py-2 px-2 border border-slate-300 text-right font-bold text-slate-900 p-name">${esc(l.empName)}</td>
+                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-700 p-job">${esc(l.jobTitle || '-')}</td>
+                    <td class="py-2 px-2 border border-slate-300">${deptHtml}</td>
                     <td class="py-2 px-2 border border-slate-300">
                         <span class="badge" style="background:${esc(color)}18;color:${esc(color)};border-color:${esc(color)}55">${esc(l.leaveType || '-')}</span>
                     </td>
                     <td class="py-2 px-2 border border-slate-300 text-center">${durationHtml}</td>
-                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-600">${esc(notes || '-')}</td>
-                    <td class="py-2 px-2 border border-slate-300"><span class="status-chip ${statusClass}">${esc(statusLabel)}</span></td>
+                    <td class="py-2 px-2 border border-slate-300 text-right text-slate-600 p-notes">${esc(notes || '-')}</td>
+                    <td class="py-2 px-2 border border-slate-300 no-print no-export"><span class="status-chip ${statusClass}">${esc(statusLabel)}</span></td>
                     <td class="py-2 px-2 border border-slate-300 no-print">
                         <div class="flex items-center justify-center gap-1">
                             <button type="button" class="text-brand-600 hover:text-brand-800 p-1 text-[11px]" data-dact="edit" data-id="${esc(l.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button>
@@ -287,6 +299,48 @@ App.Dashboard = (function () {
 
     /* ---------------- التهيئة ---------------- */
 
+    /* ---------------- إظهار كل الصفوف مؤقتاً عند التصدير ----------------
+       الطباعة والتصدير يجب أن يشمل كل السجلات المطابقة للفلاتر، لا الصفحة
+       المعروضة فقط. نضبط حجم الصفحة على «الكل» ثم نعيد الحالة كما كانت. */
+    function restoreRows(saved) {
+        const sizeSel = $('pageSize');
+        if (sizeSel) sizeSel.value = saved.value;
+        else pager.pageSize = saved.pageSize;
+        pager.page = saved.page;
+        render();
+    }
+
+    function withAllRows(task) {
+        const sizeSel = $('pageSize');
+        const saved = {
+            value: sizeSel ? sizeSel.value : '50',
+            page: pager.page,
+            pageSize: pager.pageSize
+        };
+
+        if (sizeSel) sizeSel.value = '0';
+        else pager.pageSize = 0;
+        pager.page = 1;
+        render();
+
+        let result;
+        try {
+            result = task();
+        } catch (e) {
+            restoreRows(saved);
+            throw e;
+        }
+
+        if (result && typeof result.then === 'function') {
+            return result.then(
+                (v) => { restoreRows(saved); return v; },
+                (e) => { restoreRows(saved); throw e; }
+            );
+        }
+        restoreRows(saved);
+        return result;
+    }
+
     function updatePeriodUI() {
         const mode = val('dashPeriodMode') || 'day';
         const rangeBox = $('dashRangeBox');
@@ -385,33 +439,41 @@ App.Dashboard = (function () {
             });
         }
 
-        /* التصدير */
+        /* التصدير
+           مهم: الجدول مُقسَّم بصفحات داخلية، فلو صدّرنا المعروض فقط لضاعت
+           السجلات الواقعة في الصفحات التالية (شهر فيه 200 سجل كان يُطبع 50).
+           لذلك نُظهر كل الصفوف مؤقتاً ثم نُعيد حالة الترقيم كما كانت. */
         const excelBtn = $('btnDashExcel');
         if (excelBtn) {
             excelBtn.addEventListener('click', () => {
-                const range = currentRange();
-                const name = 'موقف_الإجازات_' + App.Security.safeFileName(Store.get.settings().hospital || 'المستشفى') +
-                    '_' + (range.from || 'all') + '.xlsx';
-                App.Exporters.excelFromTable($('dashboardTable'), name, 'موقف الإجازات');
-                App.Notify.toast('تم تصدير ملف Excel', 'success');
+                withAllRows(() => {
+                    const range = currentRange();
+                    const name = 'موقف_الإجازات_' + App.Security.safeFileName(Store.get.settings().hospital || 'المستشفى') +
+                        '_' + (range.from || 'all') + '.xlsx';
+                    App.Exporters.excelFromTable($('dashboardTable'), name, 'موقف الإجازات');
+                    App.Notify.toast('تم تصدير ملف Excel', 'success');
+                });
             });
         }
 
         const pdfBtn = $('btnDashPdf');
         if (pdfBtn) {
             pdfBtn.addEventListener('click', () => {
-                const range = currentRange();
-                App.Exporters.pdfFromElement(
-                    $('printableArea'),
-                    'موقف_الإجازات_' + (range.from || 'all') + '.pdf'
-                );
+                withAllRows(() => {
+                    const range = currentRange();
+                    return App.Exporters.pdfFromElement(
+                        $('printableArea'),
+                        'موقف_الإجازات_' + (range.from || 'all') + '.pdf'
+                    );
+                });
             });
         }
 
         const printBtn = $('btnDashPrint');
         if (printBtn) {
             printBtn.addEventListener('click', () => {
-                App.Exporters.print('موقف الإجازات اليومي');
+                withAllRows(() => App.Exporters.printElement(
+                    document.getElementById('printableArea'), 'موقف الإجازات اليومي'));
             });
         }
 

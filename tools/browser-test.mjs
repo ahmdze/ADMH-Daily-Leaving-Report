@@ -529,6 +529,16 @@ try {
         const de = document.documentElement;
         const table = document.getElementById('dashboardTable');
         const report = document.getElementById('reportOutput');
+        const offenders = [];
+        document.querySelectorAll('body *').forEach((el) => {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return;
+            if (r.right > de.clientWidth + 0.5 || r.left < -0.5) {
+                offenders.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
+                    '.' + String(el.className || '').split(' ').slice(0, 2).join('.') +
+                    '[l=' + Math.round(r.left) + ',r=' + Math.round(r.right) + ']');
+            }
+        });
         return {
             docScroll: de.scrollWidth,
             docClient: de.clientWidth,
@@ -537,12 +547,14 @@ try {
             reportClient: report ? report.clientWidth : 0,
             worst: [].slice.call(document.querySelectorAll('.print-container, .print-table, table'))
                 .map(el => Math.round(el.getBoundingClientRect().width))
-                .reduce((a, b) => Math.max(a, b), 0)
+                .reduce((a, b) => Math.max(a, b), 0),
+            offenders: offenders.slice(0, 6)
         };
     });
     check('print: no horizontal overflow of the page',
         overflow.docScroll <= overflow.docClient + 2,
-        'scroll=' + overflow.docScroll + ' client=' + overflow.docClient + ' widest=' + overflow.worst);
+        'scroll=' + overflow.docScroll + ' client=' + overflow.docClient +
+        ' widest=' + overflow.worst + ' offenders=' + (overflow.offenders.join(' | ') || 'none'));
 
     await page.screenshot({ path: path.join(SHOTS, '08-print-layout.png'), fullPage: true });
 
@@ -556,21 +568,27 @@ try {
         const de = document.documentElement;
         const table = document.getElementById('dashboardTable');
         const cells = [].slice.call(document.querySelectorAll('#dashboardTable thead th'));
+        const visible = cells.filter(th => th.getClientRects().length > 0);
         return {
             docScroll: de.scrollWidth,
             docClient: de.clientWidth,
             tableWidth: Math.round(table.getBoundingClientRect().width),
-            headerCellsRendered: cells.filter(th => th.getClientRects().length > 0).length,
-            lastHeaderVisible: cells.length ? cells[cells.length - 2].getClientRects().length > 0 : false
+            headerCellsRendered: visible.length,
+            visibleHeaders: visible.map(th => th.textContent.replace(/\s+/g, ' ').trim()).join(' | '),
+            lastVisibleText: visible.length ? visible[visible.length - 1].textContent.replace(/\s+/g, ' ').trim() : '',
+            statusVisible: visible.some(th => th.textContent.indexOf('الحالة') !== -1)
         };
     });
     check('A4 width: no horizontal overflow', a4.docScroll <= a4.docClient + 2,
         'scroll=' + a4.docScroll + ' client=' + a4.docClient);
     check('A4 width: table fits the page', a4.tableWidth <= a4.docClient + 2,
         a4.tableWidth + ' <= ' + a4.docClient);
-    /* 9 أعمدة في الجدول، لكن عمود «إجراءات» مُستثنى من الطباعة فيبقى 8 */
-    check('A4 width: all 8 printed header cells present', a4.headerCellsRendered === 8, a4.headerCellsRendered);
-    check('A4 width: last printed column (الحالة) visible', a4.lastHeaderVisible);
+    /* عمودا «الحالة» و«إجراءات» مستثنيان من الطباعة فيبقى 7 أعمدة */
+    check('A4 width: exactly 7 printed header cells', a4.headerCellsRendered === 7,
+        a4.headerCellsRendered + ' :: ' + a4.visibleHeaders);
+    check('A4 width: last printed column is the notes column', /الملاحظات/.test(a4.lastVisibleText),
+        a4.lastVisibleText);
+    check('A4 width: status column hidden in print', a4.statusVisible === false);
     await page.screenshot({ path: path.join(SHOTS, '09-print-a4.png'), fullPage: true });
 
     await page.emulateMediaType(null);
@@ -969,6 +987,466 @@ try {
     check('migration: no console/page errors during migration', migErrors.length === 0, migErrors.slice(0, 2).join(' || '));
 
     await p3.close();
+
+    /* ---------- Phase L: acceptance tests for the 11 reported issues ----------
+       تغطي: صيغ التاريخ، حذف عمود الحالة، تنسيق الأعمدة، ترتيب التوقيعات،
+       التذييل الثابت، ترقيم الصفحات، حجم الملاحظات، أعمدة التقرير الشامل،
+       إخفاء أيقونات الفرز، وربط الرصيد السنوي الافتراضي. */
+    const p4 = await browser.newPage();
+    await p4.setViewport({ width: 1500, height: 950 });
+    const reqErrors = [];
+    p4.on('pageerror', (e) => reqErrors.push(e.message));
+    p4.on('console', (m) => { if (m.type() === 'error') reqErrors.push('console: ' + m.text()); });
+    p4.on('dialog', async (d) => { await d.accept(); });
+
+    const DL2 = path.join(ROOT, '_downloads_req');
+    fs.rmSync(DL2, { recursive: true, force: true });
+    fs.mkdirSync(DL2, { recursive: true });
+    const cdp2 = await p4.createCDPSession();
+    await cdp2.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: DL2, eventsEnabled: true });
+
+    await p4.goto(APP_URL, { waitUntil: 'load' });
+    await p4.waitForFunction('window.App && App.Store && App.Store.isReady()', { timeout: 20000 });
+    await p4.evaluate(async () => {
+        await App.Store.factoryReset();
+        const types = App.Store.get.leaveTypes();
+        const annual = types.find(t => /اعتيادية/.test(t.name));
+        const sick = types.find(t => /مرضية/.test(t.name));
+        const hourly = types.find(t => /زمنية/.test(t.name));
+
+        const mk = (o) => Object.assign({
+            empId: '', section: '', fromTime: '', toTime: '', hoursCount: 0,
+            compensatoryDays: 0, excludedHolidays: [], status: 'approved',
+            createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+        }, o);
+
+        App.Store.get.leaves().push(
+            mk({
+                id: 'L1', empName: 'د. علي حسين كاظم', jobTitle: 'طبيب اختصاص باطنية',
+                dept: 'قسم الباطنية', section: 'شعبة الباطنية أ',
+                leaveTypeId: annual.id, leaveType: annual.name, leaveTypeIsHourly: false,
+                fromDate: '2026-10-05', toDate: '2026-10-08',
+                calendarDays: 4, daysCount: 4, deductedDays: 4, notes: 'ظرف عائلي طارئ'
+            }),
+            mk({
+                id: 'L2', empName: 'م.م مروة جاسم محمد', jobTitle: 'ممرض جامعي',
+                dept: 'شعبة الطوارئ', section: 'وحدة الإنعاش',
+                leaveTypeId: sick.id, leaveType: sick.name, leaveTypeIsHourly: false,
+                fromDate: '2026-10-06', toDate: '2026-10-07',
+                calendarDays: 2, daysCount: 2, deductedDays: 2, notes: 'تقرير طبي'
+            }),
+            mk({
+                id: 'L3', empName: 'أحمد جبار عبد', jobTitle: 'ملاحظ إداري',
+                dept: 'قسم الخدمات الإدارية', section: 'شعبة الموارد البشرية',
+                leaveTypeId: hourly.id, leaveType: hourly.name, leaveTypeIsHourly: true,
+                fromDate: '2026-10-07', toDate: '2026-10-07',
+                calendarDays: 1, daysCount: 0, deductedDays: 0, hoursCount: 3,
+                fromTime: '09:00', toTime: '12:00', notes: 'مراجعة دائرة رسمية'
+            })
+        );
+
+        App.Store.get.staff().push(
+            { id: 'E1', name: 'د. علي حسين كاظم', jobTitle: 'طبيب اختصاص باطنية', dept: 'قسم الباطنية', section: 'شعبة الباطنية أ', employeeNumber: '', annualBalance: 21, isActive: true },
+            { id: 'E2', name: 'م.م مروة جاسم محمد', jobTitle: 'ممرض جامعي', dept: 'شعبة الطوارئ', section: 'وحدة الإنعاش', employeeNumber: '', annualBalance: 21, isActive: true }
+        );
+        App.Store.get.leaves()[0].empId = 'E1';
+        App.Store.get.leaves()[1].empId = 'E2';
+
+        App.Store.save(['leaves', 'staff']);
+        App.App.showTab('dashboard');
+        document.getElementById('dashPeriodMode').value = 'all';
+        document.getElementById('dashPeriodMode').dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await new Promise(r => setTimeout(r, 700));
+
+    /* --- Issue 1 + 2: date under the title and the issue date --- */
+    const headerDates = await p4.evaluate(() => {
+        const mode = document.getElementById('dashPeriodMode');
+        const date = document.getElementById('dashboardFilterDate');
+        mode.value = 'day';
+        date.value = '2026-10-05';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+        date.dispatchEvent(new Event('change', { bubbles: true }));
+        return {
+            rptDate: document.getElementById('rptDate').textContent.trim(),
+            created: document.getElementById('rptCreatedDate').textContent.trim()
+        };
+    });
+    check('issue 1: date under the title is "dd/mm/yyyy يوم <اليوم>"',
+        /^\d{2}\/\d{2}\/\d{4} يوم \S+/.test(headerDates.rptDate), headerDates.rptDate);
+    check('issue 2: issue date is short dd/mm/yyyy',
+        /^\d{2}\/\d{2}\/\d{4}$/.test(headerDates.created), headerDates.created);
+
+    const rangeDate = await p4.evaluate(() => {
+        const mode = document.getElementById('dashPeriodMode');
+        mode.value = 'range';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+        document.getElementById('dashFromDate').value = '2026-10-05';
+        document.getElementById('dashToDate').value = '2026-10-08';
+        document.getElementById('dashToDate').dispatchEvent(new Event('change', { bubbles: true }));
+        return document.getElementById('rptDate').textContent.trim();
+    });
+    check('issue 1: range mode shows dd/mm/yyyy range',
+        /من \d{2}\/\d{2}\/\d{4} إلى \d{2}\/\d{2}\/\d{4}/.test(rangeDate) && !/\d{4}-\d{2}-\d{2}/.test(rangeDate), rangeDate);
+
+    /* --- Issue 3 + 4 + 8 + 10: table structure --- */
+    await p4.evaluate(() => {
+        const mode = document.getElementById('dashPeriodMode');
+        mode.value = 'all';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await new Promise(r => setTimeout(r, 500));
+
+    const cells = await p4.evaluate(() => {
+        const ths = [].slice.call(document.querySelectorAll('#dashboardTable thead th'));
+        const statusTh = ths.find(t => t.textContent.indexOf('الحالة') !== -1);
+        const row = document.querySelector('#dashboardTableBody tr');
+        const tds = [].slice.call(row.children);
+        const notesTd = tds[6];
+        return {
+            statusThClass: statusTh ? statusTh.className : 'MISSING',
+            statusTdClass: tds[7] ? tds[7].className : 'MISSING',
+            nameClass: tds[1].className,
+            jobClass: tds[2].className,
+            deptHtml: tds[3].innerHTML,
+            notesClass: notesTd.className,
+            rowText: row.textContent.replace(/\s+/g, ' ').trim(),
+            bodyText: document.getElementById('dashboardTableBody').textContent.replace(/\s+/g, ' ').trim(),
+            sortIconsNoPrint: document.querySelectorAll('#dashboardTable thead i.no-print').length,
+            sortIconsTotal: document.querySelectorAll('#dashboardTable thead i[class*="fa-sort"]').length
+        };
+    });
+    check('issue 3: status header is excluded from print/export',
+        /no-print/.test(cells.statusThClass) && /no-export/.test(cells.statusThClass), cells.statusThClass);
+    check('issue 3: status cell is excluded from print/export',
+        /no-print/.test(cells.statusTdClass) && /no-export/.test(cells.statusTdClass), cells.statusTdClass);
+    check('issue 4: employee name kept on one line (p-name)', /p-name/.test(cells.nameClass), cells.nameClass);
+    check('issue 4: job title clamped to two lines (p-job)', /p-job/.test(cells.jobClass), cells.jobClass);
+    check('issue 4: department bold with section underneath',
+        /p-dept-name/.test(cells.deptHtml) && /p-dept-section/.test(cells.deptHtml),
+        cells.deptHtml.replace(/\s+/g, ' ').slice(0, 120));
+    check('issue 8: notes cell uses the small class (p-notes)', /p-notes/.test(cells.notesClass), cells.notesClass);
+    /* الصف الأول قد يكون إجازة زمنية بلا تواريخ، لذا نفحص كل صفوف الجدول:
+       يجب أن توجد صيغة dd/mm/yyyy وألّا توجد أي صيغة ISO. */
+    check('issue 2: table dates are dd/mm/yyyy',
+        /\d{2}\/\d{2}\/\d{4}/.test(cells.bodyText) && !/\d{4}-\d{2}-\d{2}/.test(cells.bodyText),
+        cells.bodyText.slice(0, 110));
+    check('issue 10: every sort arrow is marked no-print',
+        cells.sortIconsTotal > 0 && cells.sortIconsNoPrint === cells.sortIconsTotal,
+        cells.sortIconsNoPrint + '/' + cells.sortIconsTotal);
+
+    /* --- Issue 5: signature order on screen and in print --- */
+    const sig = await p4.evaluate(() => {
+        const hr = document.getElementById('rptFooterHR').closest('.signature-block');
+        const mg = document.getElementById('rptFooterManager').closest('.signature-block');
+        const a = hr.getBoundingClientRect(), b = mg.getBoundingClientRect();
+        return {
+            hrClass: hr.className, mgClass: mg.className,
+            hrLeft: Math.round(a.left), mgLeft: Math.round(b.left),
+            sameRow: Math.abs(a.top - b.top) < 5
+        };
+    });
+    check('issue 5: HR signature sits to the right of the manager signature',
+        sig.hrLeft > sig.mgLeft && sig.sameRow,
+        'hr.left=' + sig.hrLeft + ' manager.left=' + sig.mgLeft);
+    check('issue 5: signature layout uses floats (safe for html2canvas)',
+        /signature-right/.test(sig.hrClass) && /signature-left/.test(sig.mgClass),
+        sig.hrClass + ' / ' + sig.mgClass);
+
+    /* --- Issues 6 + 7 + 8 + 10: the generated A4 pages --- */
+    const pages = await p4.evaluate(async () => {
+        const host = document.getElementById('printHost');
+        const res = await App.PrintLayout.paginate(document.getElementById('printableArea'));
+        const first = res.pages[0];
+        const last = res.pages[res.pages.length - 1];
+        const notes = first.querySelector('.p-notes');
+        const onScreenNotes = document.querySelector('#dashboardTableBody .p-notes');
+        const out = {
+            total: res.total,
+            pageWidth: first.getBoundingClientRect().width,
+            pageHeight: first.getBoundingClientRect().height,
+            credit: (first.querySelector('.pf-credit') || {}).textContent || '',
+            page1: (first.querySelector('.pf-pageno') || {}).textContent || '',
+            lastPage: (last.querySelector('.pf-pageno') || {}).textContent || '',
+            noPrintLeft: first.querySelectorAll('.no-print').length,
+            statusChips: first.querySelectorAll('.status-chip').length,
+            statusHeaderCells: [].slice.call(first.querySelectorAll('th')).filter(function (th) { return th.textContent.indexOf('الحالة') !== -1; }).length,
+            sortIcons: first.querySelectorAll('i[class*="fa-sort"]').length,
+            headerRepeated: res.pages.every(p => p.textContent.indexOf('وزارة الصحة') !== -1),
+            rowsOnPage1: first.querySelectorAll('tbody tr').length,
+            rowsPerPage: res.pages.map(p => p.querySelectorAll('tbody tr').length),
+            rowsTotal: res.pages.reduce((s, p) => s + p.querySelectorAll('tbody tr').length, 0),
+            bodyOverflow: res.pages.map(p => {
+                const body = p.querySelector('.print-page-body');
+                if (!body) return 0;
+                const kids = [].slice.call(body.children);
+                if (!kids.length) return 0;
+                const top = body.getBoundingClientRect().top;
+                const bottom = Math.max.apply(null, kids.map(k => k.getBoundingClientRect().bottom));
+                return Math.round(bottom - top);
+            }),
+            notesFontSize: notes ? getComputedStyle(notes).fontSize : 'none',
+            screenNotesFontSize: onScreenNotes ? getComputedStyle(onScreenNotes).fontSize : 'none'
+        };
+        App.PrintLayout.cleanup();
+        out.hostCleared = host.children.length === 0;
+        return out;
+    });
+    check('engine: pages generated', pages.total >= 1, pages.total);
+    check('engine: page is exactly A4 (794x1123)',
+        Math.round(pages.pageWidth) === 794 && Math.round(pages.pageHeight) === 1123,
+        pages.pageWidth + 'x' + pages.pageHeight);
+    check('issue 6: fixed credit footer inside every page',
+        /نظام موقف الإجازات اليومي الموحد/.test(pages.credit) &&
+        /احمد زياد رحيمه/.test(pages.credit), pages.credit.slice(0, 70));
+    check('issue 6: footer present on every page', pages.headerRepeated && pages.credit.length > 20);
+    check('issue 7: page 1 footer reads "الصفحة 1 من N"',
+        pages.page1 === 'الصفحة 1 من ' + pages.total, pages.page1);
+    check('issue 7: last page footer reads "الصفحة N من N"',
+        pages.lastPage === 'الصفحة ' + pages.total + ' من ' + pages.total, pages.lastPage);
+    check('issue 3: no status chip survives into the pages', pages.statusChips === 0, pages.statusChips);
+    check('issue 3: no status column header in the pages', pages.statusHeaderCells === 0, pages.statusHeaderCells);
+    check('issue 10: sort arrows absent from generated pages', pages.sortIcons === 0, pages.sortIcons);
+    check('engine: repeated official header on every page', pages.headerRepeated);
+    check('engine: table rows rendered on page 1', pages.rowsOnPage1 === 3, pages.rowsOnPage1);
+    /* الفحص الأهم: لا يجوز أن يضيع أي صف أثناء التقسيم */
+    check('engine: no record lost during pagination (3 in, 3 out)',
+        pages.rowsTotal === 3, 'sum=' + pages.rowsTotal + ' perPage=[' + pages.rowsPerPage.join(',') + ']');
+    check('engine: no .no-print nodes survive pagination', pages.noPrintLeft === 0, pages.noPrintLeft);
+    check('engine: cleanup empties the host', pages.hostCleared === true);
+    check('issue 8: notes font is smaller inside the printed page',
+        parseFloat(pages.notesFontSize) < parseFloat(pages.screenNotesFontSize),
+        pages.notesFontSize + ' < ' + pages.screenNotesFontSize);
+
+    /* --- لقطة بصرية لصفحة A4 مولّدة: تحقق بشري من التنسيق --- */
+    await p4.evaluate(async () => {
+        document.body.classList.add('print-capturing');
+        await App.PrintLayout.paginate(document.getElementById('printableArea'));
+    });
+    await new Promise(r => setTimeout(r, 500));
+    const pageShot = await p4.$('#printHost .print-page');
+    check('engine: a generated A4 page exists for screenshot', !!pageShot);
+    if (pageShot) await pageShot.screenshot({ path: path.join(SHOTS, '10-print-page.png') });
+    await p4.evaluate(() => { App.PrintLayout.cleanup(); });
+    await new Promise(r => setTimeout(r, 300));
+
+    /* --- Issue 7 + 6 in the real PDF file --- */
+    const pdfRes = await p4.evaluate(async () => {
+        const res = await App.PrintLayout.toPdf(document.getElementById('printableArea'), 'req-test.pdf');
+        App.PrintLayout.cleanup();
+        return { pages: res.pages };
+    });
+    let reqPdf = null;
+    for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        const files = fs.readdirSync(DL2).filter(f => f.endsWith('.pdf'));
+        if (files.length) { reqPdf = files[0]; break; }
+    }
+    check('engine: PDF produced by the paginated path', !!reqPdf, reqPdf || 'none');
+    check('engine: PDF page count matches the pagination', pdfRes.pages === pages.total,
+        pdfRes.pages + ' vs ' + pages.total);
+    if (reqPdf) {
+        const size = fs.statSync(path.join(DL2, reqPdf)).size;
+        check('engine: PDF file is non-trivial', size > 10000, size + ' bytes');
+    }
+
+    /* --- Issue 9: comprehensive report columns --- */
+    const repCols = await p4.evaluate(async () => {
+        App.App.showTab('reports');
+        const mode = document.getElementById('reportMode');
+        mode.value = 'all';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+        document.getElementById('btnRunReport').click();
+        await new Promise(r => setTimeout(r, 1200));
+
+        const out = document.getElementById('reportOutput');
+        const tables = [].slice.call(out.querySelectorAll('table'));
+        let details = null;
+        tables.forEach(t => {
+            const heads = [].slice.call(t.querySelectorAll('thead th')).map(th => th.textContent.replace(/\s+/g, ' ').trim());
+            if (heads.some(h => h.indexOf('نوع الإجازة') !== -1)) details = heads;
+        });
+        const statusTh = out.querySelector('th.no-print');
+        return {
+            details: details || [],
+            hasDeducted: !!details && details.some(h => h.indexOf('الأيام المخصومة') !== -1),
+            durationIdx: details ? details.findIndex(h => h.indexOf('المدة') !== -1) : -1,
+            typeIdx: details ? details.findIndex(h => h.indexOf('نوع الإجازة') !== -1) : -1,
+            statusMarked: statusTh ? statusTh.className : 'none',
+            datesDmy: /\d{2}\/\d{2}\/\d{4}/.test(out.textContent),
+            isoLeft: /\d{4}-\d{2}-\d{2}/.test(out.textContent),
+            headerRepeatable: !!out.querySelector('[data-print-header]'),
+            sigFloats: !!out.querySelector('.signature-right') && !!out.querySelector('.signature-left')
+        };
+    });
+    check('issue 9: comprehensive report dropped the deducted-days column',
+        repCols.hasDeducted === false, repCols.details.join(' | '));
+    check('issue 9: "المدة" column sits right after "نوع الإجازة"',
+        repCols.typeIdx >= 0 && repCols.durationIdx === repCols.typeIdx + 1,
+        'type@' + repCols.typeIdx + ' duration@' + repCols.durationIdx + ' :: ' + repCols.details.join(' | '));
+    check('issue 3: report status column marked no-print', /no-print/.test(repCols.statusMarked), repCols.statusMarked);
+    check('issue 2: report dates are dd/mm/yyyy', repCols.datesDmy && !repCols.isoLeft);
+    check('engine: report header marked for repetition', repCols.headerRepeatable);
+    check('issue 5: report signatures use the float layout', repCols.sigFloats);
+
+    /* --- Issue 11: default annual balance must reach the reports --- */
+    const bal = await p4.evaluate(async () => {
+        App.App.showTab('settings');
+        App.Settings.showSubTab('policy');
+        document.getElementById('setDefaultBalance').value = '30';
+        document.getElementById('btnApplyBalanceAll').click();
+        await new Promise(r => setTimeout(r, 500));
+        const btn = [].slice.call(document.querySelectorAll('.app-modal-backdrop button'))
+            .find(b => b.textContent.indexOf('تطبيق') !== -1);
+        if (btn) btn.click();
+        await new Promise(r => setTimeout(r, 800));
+        return {
+            applied: App.Store.get.staff().map(p => p.annualBalance),
+            setting: App.Store.get.settings().defaultAnnualBalance
+        };
+    });
+    check('issue 11: apply-to-all updated every employee balance',
+        bal.applied.length === 2 && bal.applied.every(v => v === 30), bal.applied.join(','));
+
+    const balReport = await p4.evaluate(async () => {
+        App.App.showTab('reports');
+        const mode = document.getElementById('reportMode');
+        mode.value = 'balance';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+        document.getElementById('btnRunReport').click();
+        await new Promise(r => setTimeout(r, 1200));
+        const txt = document.getElementById('reportOutput').textContent;
+        return { has30: /30/.test(txt), has21: /21/.test(txt), sample: txt.replace(/\s+/g, ' ').slice(0, 400) };
+    });
+    check('issue 11: balance report reflects the new 30-day balance',
+        balReport.has30 === true, balReport.has21 ? 'still contains 21' : 'ok');
+
+    /* --- Issue 11b: changing the default in settings offers to apply to all --- */
+    const promptFlow = await p4.evaluate(async () => {
+        App.App.showTab('settings');
+        App.Settings.showSubTab('policy');
+        document.getElementById('setDefaultBalance').value = '25';
+        document.getElementById('btnSavePolicy').click();
+        await new Promise(r => setTimeout(r, 700));
+        const modal = document.querySelector('.app-modal-backdrop');
+        if (!modal) return { modal: false };
+        const text = modal.textContent;
+        const btn = [].slice.call(modal.querySelectorAll('button'))
+            .find(b => b.textContent.indexOf('طبّقه على الكل') !== -1);
+        if (btn) btn.click();
+        await new Promise(r => setTimeout(r, 800));
+        return {
+            modal: true,
+            asked: /تطبيق الرصيد الجديد|طبّقه على الكل/.test(text),
+            balances: App.Store.get.staff().map(p => p.annualBalance)
+        };
+    });
+    check('issue 11: saving a changed default asks whether to apply to everyone',
+        promptFlow.modal === true && promptFlow.asked === true);
+    check('issue 11: accepting the prompt updates all balances',
+        promptFlow.balances && promptFlow.balances.every(v => v === 25), (promptFlow.balances || []).join(','));
+
+    /* --- Stress: many records must paginate without losing a single row --- */
+    const bulk = await p4.evaluate(async () => {
+        const t = App.Store.get.leaveTypes().find(x => /اعتيادية/.test(x.name));
+        for (let i = 0; i < 57; i++) {
+            App.Store.get.leaves().push({
+                id: 'bulk-' + i, empId: '', empName: 'موظف اختبار رقم ' + (i + 1),
+                jobTitle: 'طبيب اختصاص', dept: 'قسم الباطنية', section: 'شعبة الباطنية أ',
+                leaveTypeId: t.id, leaveType: t.name, leaveTypeIsHourly: false,
+                fromDate: '2026-0' + (1 + (i % 9)) + '-' + String(1 + (i % 27)).padStart(2, '0'),
+                toDate: '2026-0' + (1 + (i % 9)) + '-' + String(2 + (i % 27)).padStart(2, '0'),
+                calendarDays: 2, daysCount: 2, deductedDays: 2, hoursCount: 0,
+                compensatoryDays: 0, excludedHolidays: [],
+                notes: 'ملاحظة اختبار طويلة نسبياً للتأكد من أنها تظهر كاملة في المطبوع',
+                status: 'approved', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+            });
+        }
+        App.Store.save(['leaves']);
+        App.Dashboard.render();
+
+        const mode = document.getElementById('dashPeriodMode');
+        mode.value = 'all';
+        mode.dispatchEvent(new Event('change', { bubbles: true }));
+
+        /* نُظهر كل الصفوف لأن الجدول الحيّ مُقسَّم 50 في الصفحة */
+        const sizeSel = document.getElementById('pageSize');
+        sizeSel.value = '0';
+        sizeSel.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 500));
+
+        const res = await App.PrintLayout.paginate(document.getElementById('printableArea'));
+        const per = res.pages.map(p => p.querySelectorAll('tbody tr').length);
+        const bodyMax = res.pages.map(p => {
+            const body = p.querySelector('.print-page-body');
+            const kids = body ? [].slice.call(body.children) : [];
+            if (!kids.length) return 0;
+            const top = body.getBoundingClientRect().top;
+            return Math.round(Math.max.apply(null, kids.map(k => k.getBoundingClientRect().bottom)) - top);
+        });
+        const limit = res.pages.length
+            ? Math.round(res.pages[0].querySelector('.print-page-body').getBoundingClientRect().height)
+            : 0;
+        App.PrintLayout.cleanup();
+        return {
+            totalRecords: App.Store.get.leaves().length,
+            pages: res.total,
+            per: per,
+            sum: per.reduce((a, b) => a + b, 0),
+            emptyPages: per.filter((n, i) => n === 0 && i < per.length - 1).length,
+            maxBody: Math.max.apply(null, bodyMax),
+            limit: limit
+        };
+    });
+    check('engine stress: 60 records span several pages', bulk.pages > 1, bulk.pages);
+    check('engine stress: every record survives pagination (60 in, 60 out)',
+        bulk.sum === 60, 'sum=' + bulk.sum + ' pages=' + bulk.pages + ' perPage=[' + bulk.per.join(',') + ']');
+    check('engine stress: no empty middle page', bulk.emptyPages === 0, bulk.emptyPages);
+    check('engine stress: page content stays inside the page',
+        bulk.maxBody <= bulk.limit + 2, bulk.maxBody + ' <= ' + bulk.limit);
+
+    /* --- Critical: printing must include records beyond the on-screen page --- */
+    const autoAll = await p4.evaluate(async () => {
+        const prevPrint = window.print;
+        let calls = 0;
+        window.print = function () { calls++; };
+
+        const sizeSel = document.getElementById('pageSize');
+        sizeSel.value = '50';
+        sizeSel.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 400));
+        const before = document.querySelectorAll('#dashboardTableBody tr').length;
+
+        document.getElementById('btnDashPrint').click();
+        await new Promise(r => setTimeout(r, 700));
+
+        let rows = 0, pages = 0;
+        document.querySelectorAll('#printHost .print-page').forEach((p) => {
+            pages++;
+            rows += p.querySelectorAll('tbody tr').length;
+        });
+
+        await new Promise(r => setTimeout(r, 2600));
+        const after = document.querySelectorAll('#dashboardTableBody tr').length;
+        const sizeAfter = document.getElementById('pageSize').value;
+
+        window.print = prevPrint;
+        App.PrintLayout.cleanup();
+        return { before, rows, pages, after, sizeAfter, printCalls: calls };
+    });
+    check('export: live table is paginated at 50 before printing', autoAll.before === 50, autoAll.before);
+    check('export: printing covers ALL 60 records, not just the visible page',
+        autoAll.rows === 60, 'printed=' + autoAll.rows + ' pages=' + autoAll.pages);
+    check('export: printing happened exactly once', autoAll.printCalls === 1, autoAll.printCalls);
+    check('export: on-screen pagination restored afterwards',
+        autoAll.after === 50 && autoAll.sizeAfter === '50',
+        'rows=' + autoAll.after + ' size=' + autoAll.sizeAfter);
+
+    check('issues: no console/page errors during acceptance tests',
+        reqErrors.length === 0, reqErrors.slice(0, 3).join(' || '));
+
+    fs.rmSync(DL2, { recursive: true, force: true });
+    await p4.close();
 
     /* ---------- Console cleanliness ---------- */
     check('no uncaught page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' || '));

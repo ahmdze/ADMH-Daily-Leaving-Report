@@ -70,7 +70,7 @@ App.Conflicts = (function () {
         node.innerHTML = `
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 space-y-1">
                 <p><strong>الموظف:</strong> ${esc(info.empName || '-')}</p>
-                <p><strong>الإجازة الجديدة:</strong> من ${esc(App.Dates.formatISO(info.fromDate))} إلى ${esc(App.Dates.formatISO(info.toDate || info.fromDate))}
+                <p><strong>الإجازة الجديدة:</strong> من ${esc(App.Dates.formatDMY(info.fromDate))} إلى ${esc(App.Dates.formatDMY(info.toDate || info.fromDate))}
                    ${info.leaveTypeName ? ' — ' + esc(info.leaveTypeName) : ''}</p>
                 <p><strong>عدد التعارضات:</strong> ${conflicts.length}</p>
             </div>
@@ -91,8 +91,8 @@ App.Conflicts = (function () {
                             <tr>
                                 <td class="py-1.5 px-2 border border-slate-200 font-bold">${i + 1}</td>
                                 <td class="py-1.5 px-2 border border-slate-200">${esc(c.record.leaveType || '-')}</td>
-                                <td class="py-1.5 px-2 border border-slate-200">${esc(c.overlapFrom)}</td>
-                                <td class="py-1.5 px-2 border border-slate-200">${esc(c.overlapTo)}</td>
+                                <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatDMY(c.overlapFrom))}</td>
+                                <td class="py-1.5 px-2 border border-slate-200">${esc(App.Dates.formatDMY(c.overlapTo))}</td>
                                 <td class="py-1.5 px-2 border border-slate-200">${c.overlapDays.length}</td>
                                 <td class="py-1.5 px-2 border border-slate-200">
                                     <span class="status-chip ${C.STATUS_CLASS[c.record.status] || ''}">${esc(C.STATUS_LABEL[c.record.status] || c.record.status || '')}</span>

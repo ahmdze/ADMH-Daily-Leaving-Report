@@ -93,6 +93,27 @@ App.Dates = (function () {
     /** 2026-10-13 */
     function formatISO(iso) { return iso ? String(iso).slice(0, 10) : ''; }
 
+    /** 22/10/2026 — الصيغة القصيرة المعتمدة في الطباعة والتصدير */
+    function formatDMY(iso) {
+        var d = parseISO(iso);
+        if (!d) return '';
+        return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+    }
+
+    /** 22/10/2026 يوم الثلاثاء — الصيغة المعتمدة تحت عنوان الموقف */
+    function formatDMYWithDay(iso) {
+        var d = parseISO(iso);
+        if (!d) return '';
+        return formatDMY(iso) + ' يوم ' + dayName(iso);
+    }
+
+    /** من 22/10/2026 إلى 25/10/2026 */
+    function formatDMYRange(fromIso, toIso) {
+        if (!fromIso) return '';
+        if (!toIso || fromIso === toIso) return formatDMY(fromIso);
+        return 'من ' + formatDMY(fromIso) + ' إلى ' + formatDMY(toIso);
+    }
+
     /** 13 تشرين الأول 2026 */
     function formatFull(iso) {
         var d = parseISO(iso);
@@ -314,6 +335,9 @@ App.Dates = (function () {
         monthName: monthName,
         isWeekend: isWeekend,
         formatISO: formatISO,
+        formatDMY: formatDMY,
+        formatDMYWithDay: formatDMYWithDay,
+        formatDMYRange: formatDMYRange,
         formatFull: formatFull,
         formatWithDay: formatWithDay,
         formatMonth: formatMonth,

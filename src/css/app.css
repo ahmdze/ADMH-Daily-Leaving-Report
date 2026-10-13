@@ -122,6 +122,49 @@ table th {
 /* ===================== الفورم غير المحفوظ ===================== */
 .is-dirty { box-shadow: inset 0 3px 0 0 #f59e0b; }
 
+/* ===================== توقيعات المطبوع =====================
+   float صريح بدل grid لأن html2canvas لا يحترم ترتيب RTL في grid،
+   فيظهر التوقيعان معكوسين في ملف PDF. */
+.print-signatures {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    text-align: center;
+}
+.print-signatures .signature-block {
+    width: 46%;
+    text-align: center;
+}
+.print-signatures .signature-right { float: right; }
+.print-signatures .signature-left { float: left; }
+.print-signatures .signature-clear { clear: both; }
+
+/* ===================== أعمدة الجدول في الطباعة =====================
+   إعدادات محايدة تعمل في الشاشة وفي صفحات A4 المولّدة أيضاً،
+   فلا تتكرر القواعد بين مسار الطباعة المباشرة ومسار التصدير. */
+.p-name { white-space: nowrap; }
+
+/* العنوان الوظيفي: سطران كحد أقصى */
+.p-job {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* القسم غامق وتحته الشعبة بخط عادي */
+.p-dept-name { font-weight: 700; }
+.p-dept-section { font-weight: 400; color: #475569; font-size: .92em; }
+
+/* السبب والملاحظات: خط أصغر حتى تظهر كاملة.
+   الحجم على الشاشة 11px، وفي المطبوع 7.5pt (انظر print.css وقواعد الطباعة أدناه). */
+.p-notes {
+    font-size: 11px;
+    line-height: 1.4;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
 /* ===================== عناصر مساعدة ===================== */
 .badge {
     display: inline-block;
@@ -230,15 +273,19 @@ table th {
     /* لا تمرير أفقي في الطباعة — التمرير يقتطع المحتوى */
     .overflow-x-auto { overflow: visible !important; }
 
-    /* توزيع أعمدة الموقف اليومي كنسب مئوية */
+    /* السبب والملاحظات: خط أصغر في المطبوع حتى يظهر كاملاً.
+       يخص مسار الطباعة المباشرة (Ctrl+P)؛ مسار الصفحات المولّدة في print.css. */
+    .p-notes { font-size: 7.5pt !important; line-height: 1.35 !important; }
+
+    /* توزيع أعمدة الموقف اليومي كنسب مئوية.
+       عمودا «الحالة» و«إجراءات» مُستثنيان من الطباعة، فتبقى 7 أعمدة = 100%. */
     #dashboardTable th:nth-child(1), #dashboardTable td:nth-child(1) { width: 4%; }
-    #dashboardTable th:nth-child(2), #dashboardTable td:nth-child(2) { width: 15%; }
-    #dashboardTable th:nth-child(3), #dashboardTable td:nth-child(3) { width: 13%; }
-    #dashboardTable th:nth-child(4), #dashboardTable td:nth-child(4) { width: 14%; }
-    #dashboardTable th:nth-child(5), #dashboardTable td:nth-child(5) { width: 10%; }
-    #dashboardTable th:nth-child(6), #dashboardTable td:nth-child(6) { width: 14%; }
+    #dashboardTable th:nth-child(2), #dashboardTable td:nth-child(2) { width: 19%; }
+    #dashboardTable th:nth-child(3), #dashboardTable td:nth-child(3) { width: 14%; }
+    #dashboardTable th:nth-child(4), #dashboardTable td:nth-child(4) { width: 15%; }
+    #dashboardTable th:nth-child(5), #dashboardTable td:nth-child(5) { width: 11%; }
+    #dashboardTable th:nth-child(6), #dashboardTable td:nth-child(6) { width: 15%; }
     #dashboardTable th:nth-child(7), #dashboardTable td:nth-child(7) { width: 22%; }
-    #dashboardTable th:nth-child(8), #dashboardTable td:nth-child(8) { width: 8%; }
 
     /* الشعار والعناوين في الترويسة لا تتجاوز حدودها */
     .print-container { overflow: visible !important; }

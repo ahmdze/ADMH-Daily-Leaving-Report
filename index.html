@@ -39,6 +39,8 @@
     </script>
     <!-- أنماط النظام والطباعة -->
     <link rel="stylesheet" href="src/css/app.css">
+    <!-- قواعد تخطيط صفحات A4 عند الطباعة والتصدير -->
+    <link rel="stylesheet" href="src/css/print.css">
 </head>
 
 <body class="min-h-screen flex flex-col bg-slate-100">
@@ -199,7 +201,7 @@
 
             <!-- منطقة الطباعة -->
             <div id="printableArea" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 print-container">
-                <div class="border-b-2 border-brand-800 pb-3 mb-5">
+                <div class="border-b-2 border-brand-800 pb-3 mb-5" data-print-header>
                     <div class="grid grid-cols-3 items-center text-center gap-2">
                         <div class="text-right space-y-0.5">
                             <h3 class="font-bold text-[11px] md:text-xs text-slate-900" id="rptMinistry">وزارة الصحة</h3>
@@ -230,13 +232,13 @@
                         <thead>
                             <tr class="bg-brand-900 text-white font-bold">
                                 <th class="py-2 px-2 border border-slate-300 w-9">ت</th>
-                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="empName">اسم الموظف <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
-                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="jobTitle">العنوان الوظيفي <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
-                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="dept">القسم / الشعبة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
-                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="leaveType">نوع الإجازة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
-                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="fromDate">المدة والتاريخ <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="empName">اسم الموظف <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 text-right sortable" data-sort="jobTitle">العنوان الوظيفي <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="dept">القسم / الشعبة <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="leaveType">نوع الإجازة <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="fromDate">المدة والتاريخ <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
                                 <th class="py-2 px-2 border border-slate-300 text-right">السبب / الملاحظات</th>
-                                <th class="py-2 px-2 border border-slate-300 sortable" data-sort="status">الحالة <i class="fa-solid fa-sort text-[9px] opacity-60"></i></th>
+                                <th class="py-2 px-2 border border-slate-300 sortable no-print no-export" data-sort="status">الحالة <i class="no-print fa-solid fa-sort text-[9px] opacity-60"></i></th>
                                 <th class="py-2 px-2 border border-slate-300 no-print w-16">إجراءات</th>
                             </tr>
                         </thead>
@@ -249,16 +251,18 @@
                     <p class="text-sm font-bold text-slate-400 mt-2">لا توجد سجلات مطابقة</p>
                 </div>
 
-                <!-- تذييل المطبوع -->
-                <div class="mt-8 pt-4 grid grid-cols-2 gap-6 text-center text-[11px]">
-                    <div>
+                <!-- توقيعات المطبوع: الموارد البشرية يميناً والمدير يساراً.
+                     استُخدم float بدل grid لأن html2canvas لا يحترم ترتيب RTL في grid. -->
+                <div class="mt-8 pt-4 text-[11px] print-signatures" data-print-end>
+                    <div class="signature-block signature-right">
                         <p class="font-bold text-slate-700" id="rptFooterHR">مسؤول الموارد البشرية</p>
                         <p class="text-slate-400 mt-6">التوقيع: .....................</p>
                     </div>
-                    <div>
+                    <div class="signature-block signature-left">
                         <p class="font-bold text-slate-700" id="rptFooterManager">مدير المستشفى</p>
                         <p class="text-slate-400 mt-6">التوقيع: .....................</p>
                     </div>
+                    <div class="signature-clear"></div>
                 </div>
             </div>
 
@@ -615,6 +619,7 @@
                         <div><label for="setFooterManager" class="block text-[11px] font-bold text-slate-600 mb-1">توقيع ثانٍ (يسار)</label><input type="text" id="setFooterManager" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
                         <div><label for="setOperatorName" class="block text-[11px] font-bold text-slate-600 mb-1">اسم مشغّل النظام (يظهر في سجل التدقيق)</label><input type="text" id="setOperatorName" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
                         <div><label for="setRptTitle" class="block text-[11px] font-bold text-slate-600 mb-1">عنوان الموقف المطبوع</label><input type="text" id="setRptTitle" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"></div>
+                        <div class="md:col-span-2"><label for="setPrintFooterText" class="block text-[11px] font-bold text-slate-600 mb-1">نص التذييل الثابت أسفل كل صفحة (طباعة وتصدير)</label><input type="text" id="setPrintFooterText" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"><p class="text-[10px] text-slate-500 mt-1">يظهر في سطر واحد أسفل كل صفحة، ويُضاف إليه «الصفحة X من Y» تلقائياً.</p></div>
                     </div>
 
                     <div class="border-t border-slate-200 pt-4">
@@ -683,6 +688,10 @@
                             <div>
                                 <label for="setDefaultBalance" class="block text-[11px] font-bold text-slate-600 mb-1">الرصيد السنوي الافتراضي للموظف (يوم)</label>
                                 <input type="number" id="setDefaultBalance" min="0" max="365" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                                <p class="text-[10px] text-amber-700 font-bold mt-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    هذا الرصيد يُطبَّق على الموظفين الجدد فقط. رصيد الموظفين الحاليين محفوظ لكل واحد على حدة.
+                                </p>
                             </div>
                             <div>
                                 <label for="setDefaultStatus" class="block text-[11px] font-bold text-slate-600 mb-1">حالة السجل الجديد افتراضياً</label>
@@ -700,6 +709,9 @@
                         </button>
                         <button type="button" id="btnRecalcAll" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
                             <i class="fa-solid fa-rotate"></i> إعادة احتساب كل السجلات بالسياسة الحالية
+                        </button>
+                        <button type="button" id="btnApplyBalanceAll" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear"></i> تطبيق الرصيد الافتراضي على كل الموظفين
                         </button>
                     </div>
                     <p class="text-[10px] text-slate-500">«إعادة الاحتساب» تحدّث الأيام المخصومة والأيام التعويضية لكل السجلات وفق السياسة والعطل الحالية، وتُسجَّل في سجل التدقيق.</p>
@@ -953,15 +965,20 @@
         </div>
     </main>
 
-    <!-- تذييل يتكرر في كل صفحة مطبوعة -->
+    <!-- تذييل احتياطي يتكرر في كل صفحة عند الطباعة المباشرة (Ctrl+P) -->
     <div class="print-footer print-only" id="printFooter">
-        <span id="printFooterText">نظام موقف الإجازات اليومية</span>
+        <span id="printFooterText">طُبع هذا الموقف عبر نظام موقف الإجازات اليومي الموحد - جميع الحقوق محفوظة للمطور: تقني طبي - احمد زياد رحيمه 07723064622</span>
     </div>
+
+    <!-- حاوية صفحات A4 المولّدة عند الطباعة أو التصدير -->
+    <div id="printHost" aria-hidden="true"></div>
 
     <div id="toastHost"></div>
 
     <!-- ==================== المكتبات المحلية ==================== -->
     <script src="assets/js/xlsx.full.min.js"></script>
+    <script src="assets/js/html2canvas.min.js"></script>
+    <script src="assets/js/jspdf.umd.min.js"></script>
     <script src="assets/js/html2pdf.bundle.min.js"></script>
     <script src="assets/js/chart.umd.min.js"></script>
 
@@ -976,6 +993,7 @@
     <script src="src/js/core/audit.js"></script>
 
     <!-- ==================== الأدوات ==================== -->
+    <script src="src/js/core/printLayout.js"></script>
     <script src="src/js/utils/exporters.js"></script>
     <script src="src/js/utils/pagination.js"></script>
 

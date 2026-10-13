@@ -98,7 +98,8 @@ App.Pagination = (function () {
             const icon = th.querySelector('i');
             if (!icon) return;
             const active = th.dataset.sort === st.sortKey;
-            icon.className = 'fa-solid ' + (active
+            /* no-print تُبقي أيقونة الفرز خارج الطباعة والتصدير */
+            icon.className = 'no-print fa-solid ' + (active
                 ? (st.sortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down')
                 : 'fa-sort') + ' text-[9px] ' + (active ? 'opacity-100' : 'opacity-60');
         });
