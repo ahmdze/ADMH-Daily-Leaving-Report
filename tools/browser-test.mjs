@@ -127,6 +127,46 @@ try {
     check('departments list rendered', dropdowns.deptCards === 6, dropdowns.deptCards);
     check('holidays list rendered', dropdowns.holidayRows === 7, dropdowns.holidayRows);
 
+    /* ---------- حول النظام: الإصدار ومعلومات المطوّر ---------- */
+    const about = await page.evaluate(() => {
+        App.Settings.showSubTab('about');
+        const txt = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.textContent.replace(/\s+/g, ' ').trim() : 'MISSING';
+        };
+        return {
+            version: App.Constants.APP_VERSION,
+            developer: App.Constants.DEVELOPER || null,
+            devText: txt('aboutDeveloper'),
+            infoText: txt('aboutInfo'),
+            copyright: txt('aboutCopyright')
+        };
+    });
+    check('about: system version is 1.0.0', about.version === '1.0.0', about.version);
+    check('about: version displayed in the panel', /1\.0\.0/.test(about.infoText), about.infoText.slice(0, 70));
+    check('about: developer card rendered with name',
+        /احمد زياد رحيمه/.test(about.devText), about.devText.slice(0, 70));
+    check('about: developer title and phone shown',
+        /تقني طبي/.test(about.devText) && /07723064622/.test(about.devText));
+    check('about: copyright line rendered',
+        /جميع الحقوق محفوظة/.test(about.copyright), about.copyright);
+    check('about: developer data comes from constants',
+        about.developer && about.developer.name === 'احمد زياد رحيمه' &&
+        about.developer.phone === '07723064622');
+    const capsText = await page.evaluate(() => {
+        const el = document.getElementById('browserCaps');
+        return el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+    });
+    check('about: no misleading PDF-export capability (removed from UI)',
+        !/تصدير PDF/.test(capsText), capsText.slice(0, 90));
+    check('about: print-engine capability listed',
+        /طباعة A4/.test(capsText));
+    await page.evaluate(() => App.App.showTab('settings'));
+    await page.evaluate(() => App.Settings.showSubTab('about'));
+    await new Promise(r => setTimeout(r, 400));
+    await page.screenshot({ path: path.join(SHOTS, '11-about.png'), fullPage: true });
+    await page.evaluate(() => App.App.showTab('dashboard'));
+
     await page.screenshot({ path: path.join(SHOTS, '01-dashboard-empty.png') });
 
     /* ---------- Phase B: add a leave through the real form ---------- */

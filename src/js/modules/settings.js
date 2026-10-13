@@ -499,6 +499,46 @@ App.Settings = (function () {
     /* ---------------- حول النظام ---------------- */
 
     function renderAbout() {
+        const d = C.DEVELOPER || {};
+
+        /* بطاقة المطوّر */
+        const dev = $('aboutDeveloper');
+        if (dev) {
+            const item = (icon, label, value, extra) => `
+                <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                    <span class="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">
+                        <i class="fa-solid ${icon}"></i>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-slate-500">${esc(label)}</span>
+                        <span class="block font-bold text-slate-800 ${extra || ''}">${esc(value)}</span>
+                    </span>
+                </div>`;
+
+            dev.innerHTML =
+                `<div class="md:col-span-2 bg-gradient-to-l from-brand-50 to-white border border-brand-200 rounded-xl p-4 flex flex-wrap items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-brand-600 text-white flex items-center justify-center text-lg shrink-0">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <div class="flex-1 min-w-[160px]">
+                        <p class="font-extrabold text-slate-800 text-sm">${esc(d.name || '—')}</p>
+                        <p class="text-slate-600">${esc(d.title || '')}</p>
+                    </div>
+                    <div class="text-slate-700">
+                        <p><i class="fa-solid fa-phone text-brand-600"></i>
+                           <span dir="ltr" class="font-bold tracking-wide">${esc(d.phone || '')}</span></p>
+                    </div>
+                 </div>` +
+                item('fa-cube', 'اسم النظام', d.system || 'نظام موقف الإجازات اليومي') +
+                item('fa-code-branch', 'إصدار النظام', C.APP_VERSION, 'text-brand-700');
+
+            const copy = $('aboutCopyright');
+            if (copy) {
+                copy.textContent = '© ' + new Date().getFullYear() + ' ' + (d.name || '') +
+                    ' — جميع الحقوق محفوظة. ' + (d.title || '');
+            }
+        }
+
         const info = $('aboutInfo');
         if (info) {
             const s = Store.get.settings();
@@ -534,6 +574,9 @@ App.Settings = (function () {
             else if (/Firefox\//.test(ua)) browser = 'Mozilla Firefox';
             else if (/Safari\//.test(ua)) browser = 'Safari';
 
+            /* محرّك صفحات A4 هو المسؤول عن الطباعة المرقّمة، وليس html2pdf */
+            const hasPrintEngine = () => !!(App.PrintLayout && App.PrintLayout.available && App.PrintLayout.available());
+
             const cap = (label, ok, note) => `
                 <div class="flex items-center gap-2">
                     <i class="fa-solid ${ok ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-rose-500'}"></i>
@@ -546,7 +589,8 @@ App.Settings = (function () {
                 cap('التخزين المحلي IndexedDB', App.IDB.supported(), App.IDB.supported() ? 'يعمل' : 'غير متاح — البيانات في localStorage فقط') +
                 cap('الحفظ في مجلد على القرص', App.FSA.supported(), App.FSA.supported() ? 'مدعوم' : 'غير مدعوم في Firefox — استخدم التصدير') +
                 cap('تصدير Excel', App.Exporters.hasXLSX(), App.Exporters.hasXLSX() ? 'جاهز' : 'المكتبة مفقودة') +
-                cap('تصدير PDF', App.Exporters.hasHtml2Pdf(), App.Exporters.hasHtml2Pdf() ? 'جاهز' : 'استخدم الطباعة ثم حفظ كـ PDF') +
+                cap('طباعة A4 مرقّمة بصفحات', hasPrintEngine(),
+                    hasPrintEngine() ? 'جاهزة — تذييل وترقيم في كل صفحة' : 'غير متاحة — تستخدم طباعة المتصفح') +
                 cap('العمل بدون إنترنت', true, 'كل المكتبات والخطوط محلية');
         }
     }

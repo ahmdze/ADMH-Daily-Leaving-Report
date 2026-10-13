@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام موقف الإجازات اليومية — النسخة المؤسسية 2.0</title>
+    <title>نظام موقف الإجازات اليومية — الإصدار 1.0.0</title>
 
     <!-- أيقونة مدمجة (لا تحتاج ملفاً خارجياً ولا إنترنت) -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230c4a6e'/%3E%3Crect%20x='8'%20y='11'%20width='16'%20height='12'%20rx='2'%20fill='none'%20stroke='%2338bdf8'%20stroke-width='2.2'/%3E%3Cpath%20d='M11%208v3M21%208v3'%20stroke='%2338bdf8'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3Cpath%20d='M12.5%2017.5l2.5%202.5%204.5-5'%20stroke='%2338bdf8'%20stroke-width='2.2'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -949,13 +949,26 @@
 
             <!-- حول النظام -->
             <div class="stab-panel hidden" data-spanel="about">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3 text-xs text-slate-700">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4 text-xs text-slate-700">
                     <h3 class="font-extrabold text-sm text-slate-800 border-b border-slate-200 pb-2">حول النظام</h3>
-                    <div id="aboutInfo" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+
+                    <!-- معلومات المطوّر -->
+                    <div>
+                        <h4 class="font-bold text-slate-800 mb-2">معلومات المطوّر</h4>
+                        <div id="aboutDeveloper" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-3">
+                        <h4 class="font-bold text-slate-800 mb-2">بيانات النظام</h4>
+                        <div id="aboutInfo" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    </div>
+
                     <div class="border-t border-slate-200 pt-3">
                         <h4 class="font-bold text-slate-800 mb-2">قدرات المتصفح الحالي</h4>
                         <div id="browserCaps" class="space-y-1"></div>
                     </div>
+
+                    <p class="text-center text-[10px] text-slate-400 border-t border-slate-200 pt-3" id="aboutCopyright"></p>
                 </div>
             </div>
 

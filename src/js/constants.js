@@ -136,6 +136,14 @@ App.Constants = (function () {
         'عيد الغدير', 'رأس السنة الهجرية', 'الإسراء والمعراج'
     ];
 
+    /* معلومات المطوّر — تظهر في «حول النظام» وفي تذييل كل صفحة مطبوعة */
+    var DEVELOPER = {
+        name: 'احمد زياد رحيمه',
+        title: 'تقني طبي',
+        phone: '07723064622',
+        system: 'نظام موقف الإجازات اليومي الموحد'
+    };
+
     function uid(prefix) {
         return (prefix || 'id') + '-' + Date.now().toString(36) + '-' +
                Math.random().toString(36).slice(2, 8);
@@ -143,6 +151,7 @@ App.Constants = (function () {
 
     return {
         KEYS: KEYS,
+        DEVELOPER: DEVELOPER,
         ALL_KEYS: ALL_KEYS,
         LEGACY_KEYS: LEGACY_KEYS,
         LEGACY_BACKUP_FIELDS: LEGACY_BACKUP_FIELDS,
@@ -160,7 +169,7 @@ App.Constants = (function () {
         IRAQ_HOLIDAY_TEMPLATE: IRAQ_HOLIDAY_TEMPLATE,
         MOVABLE_HOLIDAY_HINT: MOVABLE_HOLIDAY_HINT,
         uid: uid,
-        APP_VERSION: '2.0.0',
+        APP_VERSION: '1.0.0',
         SCHEMA_VERSION: 2
     };
 })();
