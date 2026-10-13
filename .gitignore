@@ -1,0 +1,12 @@
+# تبعيات البناء (لا حاجة لها في التسليم النهائي)
+node_modules/
+package-lock.json
+
+# نسخ احتياطية محلية
+_backup/
+*.bak
+*.tmp
+
+# ملفات تجريبية
+_env-test.html
+_screenshots/
