@@ -287,6 +287,7 @@ App.Store = (function () {
             audit: [],
             meta: {
                 schemaVersion: C.SCHEMA_VERSION,
+                appVersion: C.APP_VERSION,
                 createdAt: nowIso(),
                 updatedAt: nowIso(),
                 lastBackupDate: '',
@@ -423,9 +424,50 @@ App.Store = (function () {
             await persistAllNow();
         }
 
-        /* 4) ضمان اكتمال البنية بعد أي ترحيل */
+        /* 3.5) نسخة أمان قبل أي ترقية: إن تغيّر إصدار البرنامج عن آخر تشغيل
+           نأخذ نسخة احتياطية كاملة قبل لمس أي شيء، فيبقى للمستخدم نقطة رجوع. */
+        const prevAppVersion = (state.meta && state.meta.appVersion) || '';
+        const isAppUpgrade = loaded && !!prevAppVersion && prevAppVersion !== C.APP_VERSION;
+        if (isAppUpgrade) {
+            try {
+                await writeBackup('pre-upgrade');
+                emit('upgraded', { from: prevAppVersion, to: C.APP_VERSION });
+            } catch (e) {
+                console.warn('[Store] تعذّر أخذ نسخة ما قبل الترقية:', e);
+            }
+        }
+
+        /* 4) ضمان اكتمال البنية بعد أي ترحيل.
+           قد يكون التحديث أضاف مستندات أو حقولاً جديدة؛ نكتشف ذلك ونكتبه
+           على القرص فوراً، لأن ensureShape يملأ الناقص في الذاكرة فقط. */
+        const hadKey = {};
+        C.ALL_KEYS.forEach(function (k) { hadKey[k] = (state[k] !== undefined); });
+        const prevSettingsFields = state.settings ? Object.keys(state.settings).sort().join(',') : '';
+        const prevSchema = (state.meta && state.meta.schemaVersion) || 0;
+
         ensureShape();
         backfillLeaveTypeIds();
+
+        const gainedDocument = C.ALL_KEYS.some(function (k) { return !hadKey[k] && state[k] !== undefined; });
+        const gainedSetting = !!state.settings &&
+            Object.keys(state.settings).sort().join(',') !== prevSettingsFields;
+        const schemaChanged = gainedDocument || gainedSetting ||
+            prevSchema !== C.SCHEMA_VERSION || prevAppVersion !== C.APP_VERSION;
+
+        if (schemaChanged) {
+            state.meta.schemaVersion = C.SCHEMA_VERSION;
+            state.meta.appVersion = C.APP_VERSION;
+            state.meta.lastUpgradeAt = nowIso();
+            if (loaded) {
+                /* نُثبّت البنية الجديدة على القرص فوراً قبل أي تعديل آخر */
+                await persistAllNow();
+                emit('schemaUpgraded', {
+                    from: prevAppVersion || '(أول تشغيل)',
+                    to: C.APP_VERSION,
+                    newDocuments: C.ALL_KEYS.filter(function (k) { return !hadKey[k]; })
+                });
+            }
+        }
 
         /* 4.1) إعدادات معالج التنصيب (مرة واحدة لكل تنصيب) */
         if (el && !state.meta.installConfigApplied) {

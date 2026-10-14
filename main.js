@@ -272,6 +272,27 @@ function writeLeaves(leaves) {
  * يقرأ كل الوثائق ويعيد كائناً واحداً بالشكل الذي تتوقّعه الواجهة.
  * يعيد null إذا لم يوجد settings.json (أي لا بيانات محفوظة بعد).
  */
+/**
+ * اسم ملف مشتق لمفتاح غير معروف في FILE_MAP.
+ * يمنع فقدان بيانات مستند جديد أضافه المطوّر في constants.js و store.js
+ * ونسي إضافته هنا. التنقية صارمة فلا يمكن الخروج من مجلد البيانات.
+ */
+function derivedDocName(key) {
+    const k = String(key || '').trim();
+    if (!/^[A-Za-z][A-Za-z0-9]{0,40}$/.test(k)) return null;
+    return k.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase() + '.json';
+}
+
+/** العكس: اسم ملف → مفتاح camelCase (للمستندات غير المعروفة فقط) */
+function derivedDocKey(fileName) {
+    const base = String(fileName || '').replace(/\.json$/i, '');
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(base)) return null;
+    return base.replace(/-([a-z0-9])/g, function (m, ch) { return ch.toUpperCase(); });
+}
+
+/** الملفات المحجوزة التي ليست مستندات */
+const INTERNAL_FILES = ['leaves-index.json', 'backup-folder.txt'];
+
 function readAllDocs() {
     const dir = dataDir();
     if (!existsFile(path.join(dir, FILE_MAP.settings))) return null;
@@ -287,6 +308,23 @@ function readAllDocs() {
         meta: readJsonFile(path.join(dir, META_FILE)),
         leaves: readAllLeaves()
     };
+
+    /* مستندات أضافها تحديث جديد ولم تُدرج في FILE_MAP بعد — نقرأها أيضاً
+       حتى لا يعتبرها التطبيق فارغة فيعيد إنشاءها ويمحو محتواها. */
+    try {
+        const known = Object.keys(FILE_MAP).map(function (k) { return FILE_MAP[k]; })
+            .concat([META_FILE]).concat(INTERNAL_FILES);
+        fs.readdirSync(dir).forEach(function (name) {
+            if (!/\.json$/i.test(name)) return;
+            if (/\.prev\.json$/i.test(name) || /\.tmp$/i.test(name)) return;
+            if (known.indexOf(name) !== -1) return;
+            const key = derivedDocKey(name);
+            if (!key || out[key] !== undefined) return;
+            out[key] = readJsonFile(path.join(dir, name));
+            console.warn('[ADMH] مستند غير مُدرج في FILE_MAP: ' + name + ' → ' + key +
+                ' (أضِفه إلى FILE_MAP و DOC_KEYS لتثبيت اسمه)');
+        });
+    } catch (e) { /* تجاهل */ }
 
     /* تنظيف: المفاتيح الغائبة تُعاد فارغة لا null حتى لا تتعطّل الوحدات */
     out.leaveTypes = Array.isArray(out.leaveTypes) ? out.leaveTypes : [];
@@ -310,10 +348,14 @@ function writeDocFile(key, value) {
 
     if (k === 'leaves') return writeLeaves(value);
 
-    const fileName = FILE_MAP[k];
+    const fileName = FILE_MAP[k] || derivedDocName(k);
     if (!fileName) {
-        console.error('[ADMH] مفتاح وثيقة غير معروف:', k);
+        console.error('[ADMH] مفتاح وثيقة غير صالح:', k);
         return false;
+    }
+    if (!FILE_MAP[k]) {
+        console.warn('[ADMH] مفتاح غير مُدرج في FILE_MAP: ' + k + ' → ' + fileName +
+            ' — أضِفه إلى FILE_MAP و DOC_KEYS لتثبيت اسم ملفه.');
     }
 
     ensureDir(dataDir());
