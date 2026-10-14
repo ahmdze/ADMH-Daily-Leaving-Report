@@ -156,113 +156,120 @@ Function ADHM_SettingsPageCreate
     Abort
   ${EndIf}
 
-  ; ------------------------------------------------------------ مقدّمة الصفحة
-  ${NSD_CreateLabel} 0 0u 100% 16u "أدخل بيانات مؤسستك كما تريد أن تظهر في ترويسة الموقف المطبوع والتقارير، وحدّد مجلد النسخ الاحتياطي. اترك أي حقل فارغاً لاستخدام القيمة الافتراضية."
+  ; ---------------------------------------------------------------------------
+  ; مقاس صفحة Modern UI هو 300x140 وحدة حوار (dialog units).
+  ; التنبيه المهم: في نسخة NSIS المرفقة، النسبة المئوية (%) تعمل في العرض
+  ; والارتفاع ولا تعمل في الإحداثي الأفقي x (يسقط العنصر خلف الحقول فيختفي)،
+  ; لذلك كل الإحداثيات الأفقية هنا بالوحدات u، والعرض فقط بالنسبة المئوية.
+  ; التخطيط من اليمين إلى اليسار: عناوين العمود الأيمن على يمين الصفحة.
+  ; ---------------------------------------------------------------------------
+
+  ${NSD_CreateLabel} 0u 0u 100% 20u "أدخل بيانات مؤسستك كما ستظهر في ترويسة الموقف المطبوع. اترك أي حقل فارغاً لاستخدام القيمة الافتراضية."
   Pop $0
   Push $0
   Call ADHM_RtlControl
 
-  ; ----------------------------------- الصف الأول: الوزارة (يمين) | الدائرة
-  ${NSD_CreateLabel} 76% 23u 24% 11u "الوزارة"
+  ; ------------------------------- الصف الأول: الوزارة (يمين) | الدائرة (يسار)
+  ${NSD_CreateLabel} 228u 25u 24% 11u "الوزارة"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 48% 22u 27% 12u "$ADHM_Ministry"
+  ${NSD_CreateText} 144u 24u 27% 12u "$ADHM_Ministry"
   Pop $ADHM_CtlMinistry
   SendMessage $ADHM_CtlMinistry 0x00C5 80 0
   Push $ADHM_CtlMinistry
   Call ADHM_RtlControl
 
-  ${NSD_CreateLabel} 29% 23u 19% 11u "الدائرة"
+  ${NSD_CreateLabel} 87u 25u 19% 11u "الدائرة"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 0 22u 27% 12u "$ADHM_Directorate"
+  ${NSD_CreateText} 0u 24u 28% 12u "$ADHM_Directorate"
   Pop $ADHM_CtlDirectorate
   SendMessage $ADHM_CtlDirectorate 0x00C5 80 0
   Push $ADHM_CtlDirectorate
   Call ADHM_RtlControl
 
-  ; -------------------------- الصف الثاني: المستشفى / المؤسسة | القسم / الوحدة
-  ${NSD_CreateLabel} 76% 41u 24% 11u "المستشفى / المؤسسة"
+  ; ------------------- الصف الثاني: المستشفى / المؤسسة | القسم / الوحدة
+  ${NSD_CreateLabel} 228u 43u 24% 11u "المستشفى / المؤسسة"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 48% 40u 27% 12u "$ADHM_Hospital"
+  ${NSD_CreateText} 144u 42u 27% 12u "$ADHM_Hospital"
   Pop $ADHM_CtlHospital
   SendMessage $ADHM_CtlHospital 0x00C5 80 0
   Push $ADHM_CtlHospital
   Call ADHM_RtlControl
 
-  ${NSD_CreateLabel} 29% 41u 19% 11u "القسم / الوحدة"
+  ${NSD_CreateLabel} 87u 43u 19% 11u "القسم / الوحدة"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 0 40u 27% 12u "$ADHM_DepartmentUnit"
+  ${NSD_CreateText} 0u 42u 28% 12u "$ADHM_DepartmentUnit"
   Pop $ADHM_CtlDepartmentUnit
   SendMessage $ADHM_CtlDepartmentUnit 0x00C5 100 0
   Push $ADHM_CtlDepartmentUnit
   Call ADHM_RtlControl
 
-  ; ----------------------------------- الصف الثالث: توقيع أول | توقيع ثانٍ
-  ${NSD_CreateLabel} 76% 59u 24% 11u "توقيع أول (يمين)"
+  ; ----------------------------- الصف الثالث: توقيع أول | توقيع ثانٍ
+  ${NSD_CreateLabel} 228u 61u 24% 11u "توقيع أول (يمين)"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 48% 58u 27% 12u "$ADHM_FooterHR"
+  ${NSD_CreateText} 144u 60u 27% 12u "$ADHM_FooterHR"
   Pop $ADHM_CtlFooterHR
   SendMessage $ADHM_CtlFooterHR 0x00C5 80 0
   Push $ADHM_CtlFooterHR
   Call ADHM_RtlControl
 
-  ${NSD_CreateLabel} 29% 59u 19% 11u "توقيع ثانٍ (يسار)"
+  ${NSD_CreateLabel} 87u 61u 19% 11u "توقيع ثانٍ (يسار)"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 0 58u 27% 12u "$ADHM_FooterManager"
+  ${NSD_CreateText} 0u 60u 28% 12u "$ADHM_FooterManager"
   Pop $ADHM_CtlFooterManager
   SendMessage $ADHM_CtlFooterManager 0x00C5 80 0
   Push $ADHM_CtlFooterManager
   Call ADHM_RtlControl
 
-  ; --------------------------- الصف الرابع: اسم مشغّل النظام | الرصيد السنوي
-  ${NSD_CreateLabel} 76% 77u 24% 11u "اسم مشغّل النظام"
+  ; --------------------- الصف الرابع: اسم مشغّل النظام | الرصيد السنوي
+  ${NSD_CreateLabel} 228u 79u 24% 11u "اسم مشغّل النظام"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 48% 76u 27% 12u "$ADHM_OperatorName"
+  ${NSD_CreateText} 144u 78u 27% 12u "$ADHM_OperatorName"
   Pop $ADHM_CtlOperatorName
   SendMessage $ADHM_CtlOperatorName 0x00C5 80 0
   Push $ADHM_CtlOperatorName
   Call ADHM_RtlControl
 
-  ${NSD_CreateLabel} 29% 77u 19% 11u "الرصيد السنوي"
+  ${NSD_CreateLabel} 87u 79u 19% 11u "الرصيد السنوي"
   Pop $0
   Push $0
   Call ADHM_RtlControl
-  ${NSD_CreateText} 0 76u 27% 12u "$ADHM_Balance"
+  ${NSD_CreateText} 0u 78u 28% 12u "$ADHM_Balance"
   Pop $ADHM_CtlBalance
   SendMessage $ADHM_CtlBalance 0x00C5 6 0
   Push $ADHM_CtlBalance
   Call ADHM_RtlControl
 
-  ; -------------------------------- الصف الخامس: مجلد النسخ الاحتياطي
-  ${NSD_CreateLabel} 76% 97u 24% 11u "مجلد النسخ الاحتياطي"
+  ; ---------------------------- الصف الخامس: مجلد النسخ الاحتياطي
+  ${NSD_CreateLabel} 228u 99u 24% 11u "مجلد النسخ الاحتياطي"
   Pop $0
   Push $0
   Call ADHM_RtlControl
 
   ; حقل المسار: للعرض فقط (EM_SETREADONLY = 0x00CF) وبمحاذاة لاتينية
-  ${NSD_CreateText} 16% 96u 59% 12u "$ADHM_Backup"
+  ${NSD_CreateText} 48u 98u 59% 12u "$ADHM_Backup"
   Pop $ADHM_CtlBackup
   SendMessage $ADHM_CtlBackup 0x00C5 200 0
   SendMessage $ADHM_CtlBackup 0x00CF 1 0
 
-  ${NSD_CreateButton} 0 96u 15% 12u "استعراض…"
+  ${NSD_CreateButton} 0u 98u 14% 12u "استعراض…"
   Pop $0
   ${NSD_OnClick} $0 ADHM_BrowseBackup
 
-  ${NSD_CreateLabel} 0 111u 100% 13u "يُنشأ هذا المجلد أثناء التثبيت وتُحفظ فيه النسخ الاحتياطية. المجلد الافتراضي داخل «المستندات» ويمكن تغييره بزر «استعراض…»."
+  ${NSD_CreateLabel} 0u 114u 100% 22u "يُنشأ هذا المجلد أثناء التثبيت وتُحفظ فيه النسخ الاحتياطية، ويمكن تغييره بزر «استعراض…»."
   Pop $0
   Push $0
   Call ADHM_RtlControl
