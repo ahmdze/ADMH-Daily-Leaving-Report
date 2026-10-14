@@ -1,7 +1,7 @@
 # دليل البناء والتسليم — نظام موقف الإجازات اليومية (ADMH-Leaves)
 
 تطبيق سطح مكتب لويندوز مبني بـ **Electron** ويُغلَّف بمُثبِّت **NSIS** عبر `electron-builder`.
-الملف التنفيذي الناتج: `ADMH-Leaves-Setup-1.0.0.exe` — **لا يحتاج إنترنت على الإطلاق** على حاسوب المستخدم.
+الملف التنفيذي الناتج: `ADMH-Leaves-Setup-1.0.1.exe` — **لا يحتاج إنترنت على الإطلاق** على حاسوب المستخدم.
 
 ---
 
@@ -35,15 +35,15 @@ npm run dist     # ينتج ملف التثبيت النهائي
 |---|---|
 | `npm install` | تحميل `electron` و `electron-builder` في `node_modules/` |
 | `npm run pack` | بناء مجلد التطبيق فقط (`dist\win-unpacked`) بلا مُثبِّت — للتجربة السريعة |
-| `npm run dist` | بناء **مُثبِّت NSIS** كامل ← `dist\ADMH-Leaves-Setup-1.0.0.exe` |
+| `npm run dist` | بناء **مُثبِّت NSIS** كامل ← `dist\ADMH-Leaves-Setup-1.0.1.exe` |
 | `npm start` | تشغيل التطبيق مباشرة من المصدر للمعاينة |
 
 ### أين تظهر المخرجات
 
 ```
 dist\
-  ADMH-Leaves-Setup-1.0.0.exe     ← هذا هو الملف الذي يُسلَّم ويُنسخ إلى حاسوب المستخدم
-  ADMH-Leaves-Setup-1.0.0.exe.blockmap
+  ADMH-Leaves-Setup-1.0.1.exe     ← هذا هو الملف الذي يُسلَّم ويُنسخ إلى حاسوب المستخدم
+  ADMH-Leaves-Setup-1.0.1.exe.blockmap
   win-unpacked\                   ← نسخة غير مثبَّتة (للتشخيص فقط، لا تُسلَّم)
   builder-effective-config.yaml   ← الإعدادات الفعلية بعد الدمج (للتشخيص)
 ```
@@ -183,4 +183,4 @@ npm run dist
 
 النظام: **نظام موقف الإجازات اليومي الموحد**
 المطوّر: **تقني طبي — احمد زياد رحيمه** — `07723064622`
-الإصدار: **1.0.0** (يجب أن يطابق `App.Constants.APP_VERSION` في `src/js/constants.js`)
+الإصدار: **1.0.1** (يجب أن يطابق `App.Constants.APP_VERSION` في `src/js/constants.js`)

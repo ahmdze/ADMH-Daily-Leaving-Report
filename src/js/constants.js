@@ -169,7 +169,7 @@ App.Constants = (function () {
         IRAQ_HOLIDAY_TEMPLATE: IRAQ_HOLIDAY_TEMPLATE,
         MOVABLE_HOLIDAY_HINT: MOVABLE_HOLIDAY_HINT,
         uid: uid,
-        APP_VERSION: '1.0.0',
+        APP_VERSION: '1.0.1',
         SCHEMA_VERSION: 2
     };
 })();

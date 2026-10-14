@@ -1,7 +1,7 @@
 {
   "name": "adhm-leaves",
   "productName": "ADMH-Leaves",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "نظام موقف الإجازات اليومية للمؤسسات الصحية العراقية — تطبيق سطح مكتب يعمل بدون إنترنت",
   "author": "احمد زياد رحيمه",

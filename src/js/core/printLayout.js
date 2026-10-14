@@ -387,13 +387,12 @@ App.PrintLayout = (function () {
         if (!state.current) startPage(hostEl, state);
         let page = state.current;
 
-        /* الجدول يُعاد في كل صفحة: لو الصفحة تحمل محتوى ولا تحمل هذا
-           الجدول بعد، نبدأ صفحة جديدة بدل خلط جدولين في صفحة واحدة. */
-        const holderHere = page.__flow.querySelector('.print-table-host[data-tpl="' + tpl.id + '"]');
-        if (!holderHere && contentHeightOf(page) > 0) {
-            page = startPage(hostEl, state);
-        }
-
+        /* الجدول يُعاد رأسه في كل صفحة. القرار كله مبني على المساحة الفعلية:
+           نُضيف الصف ثم نقيس، ولو تجاوز المحتوى سعة الصفحة نتراجع ونبدأ
+           صفحة جديدة. لا نفرض صفحة جديدة لمجرد أن الجدول مختلف عن جدول
+           سابق، ولا لمجرد وجود عنوان أو بطاقة قبله — كان ذلك يقسم التقرير
+           إلى صفحة لكل قسم ويترك معظم الورقة فارغاً. */
+        const holderBefore = page.__flow.querySelector('.print-table-host[data-tpl="' + tpl.id + '"]');
         const countBefore = state.itemCount;
 
         const tb = tableBodyOnPage(page, tpl);
@@ -409,9 +408,7 @@ App.PrintLayout = (function () {
         if (used > cap && countBefore > 0) {
             /* نحذف الصف المضاف وحده، ونُزيل المضيف فقط إن صار فارغاً */
             if (tr.parentNode) tr.parentNode.removeChild(tr);
-            if (holderHere && !holderHere.querySelector('tbody tr')) {
-                dropTableHost(page, tpl.id);
-            }
+            if (!holderBefore) dropTableHost(page, tpl.id);
 
             page = startPage(hostEl, state);
             const tb2 = tableBodyOnPage(page, tpl);

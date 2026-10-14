@@ -142,8 +142,8 @@ try {
             copyright: txt('aboutCopyright')
         };
     });
-    check('about: system version is 1.0.0', about.version === '1.0.0', about.version);
-    check('about: version displayed in the panel', /1\.0\.0/.test(about.infoText), about.infoText.slice(0, 70));
+    check('about: system version is 1.0.1', about.version === '1.0.1', about.version);
+    check('about: version displayed in the panel', /1\.0\.1/.test(about.infoText), about.infoText.slice(0, 70));
     check('about: developer card rendered with name',
         /احمد زياد رحيمه/.test(about.devText), about.devText.slice(0, 70));
     check('about: developer title and phone shown',

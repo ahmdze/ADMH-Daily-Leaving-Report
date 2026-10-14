@@ -148,12 +148,12 @@ const backupsDir = path.join(process.env.APPDATA, 'ADMH-Leaves', 'backups');
 const backupsBefore = fs.existsSync(backupsDir) ? fs.readdirSync(backupsDir).length : 0;
 
 let bump = fs.readFileSync(CONSTANTS, 'utf8')   /* الملف مُرجَع أصلاً في هذه المرحلة */
-    .replace("APP_VERSION: '1.0.0'", "APP_VERSION: '1.0.1'");
+    .replace("APP_VERSION: '1.0.1'", "APP_VERSION: '1.0.2'");
 fs.writeFileSync(CONSTANTS, bump, 'utf8');
 runApp('bumped');
 
 const metaAfter = JSON.parse(fs.readFileSync(path.join(DATA, 'meta.json'), 'utf8'));
-check('version upgrade detected and recorded', metaAfter.appVersion === '1.0.1',
+check('version upgrade detected and recorded', metaAfter.appVersion === '1.0.2',
     metaBefore.appVersion + ' → ' + metaAfter.appVersion);
 check('upgrade timestamp recorded', !!metaAfter.lastUpgradeAt && metaAfter.lastUpgradeAt !== metaBefore.lastUpgradeAt);
 const backupsAfter = fs.existsSync(backupsDir) ? fs.readdirSync(backupsDir).length : 0;
